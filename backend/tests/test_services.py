@@ -12,19 +12,27 @@ from backend.app.services import pdf_service, quiz_service
 from backend.tests.helpers import COURSE, make_pdf, quiz_data
 
 
+NVIDIA = {"AI_API_KEY": "test-key", "AI_BASE_URL": "https://integrate.api.nvidia.com/v1", "AI_MODEL": "z-ai/glm-5.3"}
+
+
 class ServiceTests(unittest.TestCase):
-    def response_body(self, data, status="completed", refusal=False):
-        content = [{"type": "refusal", "refusal": "Document insuffisant"}] if refusal else [
-            {"type": "output_text", "text": json.dumps(data), "annotations": []}
-        ]
+    def setUp(self):
+        environment = patch.dict("os.environ", {**NVIDIA, "OPENAI_API_KEY": ""})
+        environment.start()
+        self.addCleanup(environment.stop)
+
+    def response_body(self, data, finish_reason="stop", refusal=None, content=None):
         return {
-            "id": "resp_test", "object": "response", "created_at": 0,
-            "model": quiz_service.MODEL, "status": status,
-            "output": [{"type": "message", "id": "msg_test", "role": "assistant", "status": "completed", "content": content}],
+            "id": "chatcmpl_test", "object": "chat.completion", "created": 0, "model": "test-model",
+            "choices": [{"index": 0, "finish_reason": finish_reason, "message": {
+                "role": "assistant", "refusal": refusal,
+                "content": json.dumps(data) if content is None else content,
+            }}],
         }
 
     def fake_openai(self, body=None, status=200, timeout=False):
         def handle(request):
+            self.url = str(request.url)
             self.request = json.loads(request.content)
             if timeout:
                 raise httpx.ReadTimeout("PRIVATE_TEST_VALUE", request=request)
@@ -58,20 +66,47 @@ class ServiceTests(unittest.TestCase):
 
     def test_actual_sdk_parses_quiz_and_builds_prompt(self):
         with self.fake_openai(self.response_body(quiz_data(3))):
-            quiz = quiz_service.generate_quiz(COURSE, "test-key", 3, "10e")
+            quiz = quiz_service.generate_quiz(COURSE, 3, "10e")
         self.assertEqual(quiz.model_dump(), quiz_data(3))
-        self.assertIn("exactement 3", self.request["instructions"])
-        self.assertIn("10e", self.request["instructions"])
-        self.assertIn("uniquement sur le document", self.request["instructions"])
-        self.assertIn(COURSE, self.request["input"][0]["content"])
-        self.assertTrue(self.request["text"]["format"]["strict"])
-        self.assertFalse(self.request["store"])
+        self.assertEqual(self.url, "https://integrate.api.nvidia.com/v1/chat/completions")
+        self.assertEqual(self.request["model"], "z-ai/glm-5.3")
+        system, user = self.request["messages"]
+        self.assertIn("exactement 3", system["content"])
+        self.assertIn("10e", system["content"])
+        self.assertIn("uniquement sur le document", system["content"])
+        self.assertIn('"correct_answer"', system["content"])
+        self.assertIn(COURSE, user["content"])
+
+    def test_providers_are_configured_by_environment(self):
+        cases = [
+            ({"AI_BASE_URL": "https://openrouter.ai/api/v1", "AI_MODEL": "openai/gpt-4.1-mini"},
+             "https://openrouter.ai/api/v1/chat/completions", "openai/gpt-4.1-mini"),
+            ({"AI_API_KEY": "", "OPENAI_API_KEY": "test-key", "AI_BASE_URL": "", "AI_MODEL": ""},
+             "https://api.openai.com/v1/chat/completions", "gpt-4.1-mini"),
+        ]
+        for environment, url, model in cases:
+            with self.subTest(url=url), patch.dict("os.environ", environment),                     self.fake_openai(self.response_body(quiz_data(1))):
+                quiz_service.generate_quiz(COURSE, 1)
+                self.assertEqual((self.url, self.request["model"]), (url, model))
+
+    def test_missing_key_or_model(self):
+        for environment in ({"AI_API_KEY": ""}, {"AI_MODEL": ""}):
+            with self.subTest(environment=environment), patch.dict("os.environ", environment),                     self.fake_openai(self.response_body(quiz_data())):
+                with self.assertRaises(ApiError) as error:
+                    quiz_service.generate_quiz(COURSE)
+                self.assertEqual(error.exception.code, "AI_NOT_CONFIGURED")
+
+    def test_json_wrapped_in_reasoning_or_markdown(self):
+        fence = "`" * 3
+        wrapped = "<think>Je lis le cours {brouillon}</think>" + fence + "json " + json.dumps(quiz_data(2)) + fence
+        with self.fake_openai(self.response_body(None, content=wrapped)):
+            self.assertEqual(quiz_service.generate_quiz(COURSE, 2).model_dump(), quiz_data(2))
 
     def test_full_api_workflow_with_mock_http(self):
         from fastapi.testclient import TestClient
         from backend.app.main import app
 
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}), \
+        with patch.dict("os.environ", NVIDIA), \
                 self.fake_openai(self.response_body(quiz_data(2))), TestClient(app) as client:
             response = client.post("/api/quiz/generate", files={"file": ("cours.pdf", make_pdf(), "application/pdf")}, data={"question_count": 2})
         self.assertEqual(response.status_code, 200, response.text)
@@ -86,21 +121,20 @@ class ServiceTests(unittest.TestCase):
         for data, status in cases:
             with self.subTest(data=data), self.fake_openai(self.response_body(data)):
                 with self.assertRaises(ApiError) as error:
-                    quiz_service.generate_quiz(COURSE, "test-key")
+                    quiz_service.generate_quiz(COURSE)
                 self.assertEqual(error.exception.status_code, status)
 
     def test_refused_incomplete_and_non_json_response(self):
-        malformed = self.response_body({})
-        malformed["output"][0]["content"][0]["text"] = "pas du JSON"
         cases = [
-            (self.response_body({}, refusal=True), 422),
-            (self.response_body(quiz_data(), status="incomplete"), 502),
-            (malformed, 502),
+            (self.response_body(None, refusal="Document insuffisant", content=""), 422),
+            (self.response_body(quiz_data(), finish_reason="length"), 502),
+            (self.response_body(None, content="pas du JSON"), 502),
+            (self.response_body(None, content=""), 502),
         ]
         for body, status in cases:
             with self.subTest(status=status), self.fake_openai(body):
                 with self.assertRaises(ApiError) as error:
-                    quiz_service.generate_quiz(COURSE, "test-key")
+                    quiz_service.generate_quiz(COURSE)
                 self.assertEqual(error.exception.status_code, status)
 
     def test_provider_errors_are_sanitized(self):
@@ -108,11 +142,11 @@ class ServiceTests(unittest.TestCase):
             body = {"error": {"message": "PRIVATE_TEST_VALUE", "type": "test_error"}}
             with self.subTest(upstream=upstream), self.fake_openai(body, status=upstream):
                 with self.assertRaises(ApiError) as error:
-                    quiz_service.generate_quiz(COURSE, "test-key")
+                    quiz_service.generate_quiz(COURSE)
                 self.assertEqual(error.exception.status_code, expected)
                 self.assertNotIn("PRIVATE_TEST_VALUE", str(error.exception))
         with self.fake_openai(timeout=True), self.assertRaises(ApiError) as error:
-            quiz_service.generate_quiz(COURSE, "test-key")
+            quiz_service.generate_quiz(COURSE)
         self.assertEqual(error.exception.status_code, 504)
 
 

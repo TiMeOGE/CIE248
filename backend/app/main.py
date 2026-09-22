@@ -78,7 +78,7 @@ def create_app() -> FastAPI:
         finally:
             file.file.close()
         text = extract_text(data)
-        return generate_quiz(text, os.getenv("OPENAI_API_KEY", ""), question_count, level)
+        return generate_quiz(text, question_count, level)
 
     return app
 
