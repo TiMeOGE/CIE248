@@ -35,6 +35,7 @@ Si `python` n'est pas reconnu, remplacer `python` par `py -3` sur la première l
 ### 2. Mettre la clé API
 
 La clé va dans le fichier **`backend/.env`**, dans le dossier `backend` du projet.
+Mais avant il faut renomer le fichier .env.example en .env avant de continuer
 Exemple de chemin complet : `C:\Users\<nom>\Desktop\QuizIA\backend\.env`.
 Ce fichier est créé à l'étape 1 à partir de `backend/.env.example`.
 
