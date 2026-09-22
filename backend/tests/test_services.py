@@ -66,13 +66,13 @@ class ServiceTests(unittest.TestCase):
 
     def test_actual_sdk_parses_quiz_and_builds_prompt(self):
         with self.fake_openai(self.response_body(quiz_data(3))):
-            quiz = quiz_service.generate_quiz(COURSE, 3, "10e")
+            quiz = quiz_service.generate_quiz(COURSE, 3, "difficile")
         self.assertEqual(quiz.model_dump(), quiz_data(3))
         self.assertEqual(self.url, "https://integrate.api.nvidia.com/v1/chat/completions")
         self.assertEqual(self.request["model"], "nvidia/nemotron-3-super-120b-a12b")
         system, user = self.request["messages"]
         self.assertIn("exactement 3", system["content"])
-        self.assertIn("10e", system["content"])
+        self.assertIn("Difficulte DIFFICILE", system["content"])
         self.assertIn("uniquement sur le document", system["content"])
         self.assertIn('"correct_answer"', system["content"])
         self.assertIn(COURSE, user["content"])
@@ -97,6 +97,16 @@ class ServiceTests(unittest.TestCase):
                 with self.assertRaises(ApiError) as error:
                     quiz_service.generate_quiz(COURSE)
                 self.assertEqual(error.exception.code, "AI_NOT_CONFIGURED")
+
+    def test_each_difficulty_changes_the_prompt(self):
+        prompts = set()
+        for difficulty in ("facile", "intermediaire", "difficile"):
+            with self.subTest(difficulty=difficulty), self.fake_openai(self.response_body(quiz_data(1))):
+                quiz_service.generate_quiz(COURSE, 1, difficulty)
+                system = self.request["messages"][0]["content"]
+                self.assertIn(f"Difficulte {difficulty.upper()}", system)
+                prompts.add(system)
+        self.assertEqual(len(prompts), 3)
 
     def test_json_wrapped_in_reasoning_or_markdown(self):
         fence = "`" * 3

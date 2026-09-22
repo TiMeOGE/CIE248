@@ -81,7 +81,7 @@ le serveur. Ce lancement écoute seulement sur la machine locale.
 1. Ouvrir `/docs`, puis `POST /api/quiz/generate`.
 2. Cliquer sur **Try it out**.
 3. Choisir un PDF dans le champ `file`.
-4. Renseigner `question_count`, par exemple `5`, et `level`, par exemple `10e`.
+4. Renseigner `question_count`, par exemple `5`, et `difficulty`, par exemple `difficile`.
 5. Cliquer sur **Execute** et lire le statut HTTP et le JSON retourné.
 
 Sans clé, un PDF valide donnera `503 AI_NOT_CONFIGURED`. Avec une vraie clé,
@@ -107,7 +107,14 @@ au moins `file` **ou** `text` :
 | `file` | fichier | facultatif | PDF de 5 Mio maximum |
 | `text` | texte | facultatif | texte du cours collé ; avec un PDF, ajouté après son texte |
 | `question_count` | entier | `5` | de 1 à 10 |
-| `level` | texte | `cycle` | `primaire`, `cycle`, `9e`, `10e`, `11e` |
+| `difficulty` | texte | `intermediaire` | `facile`, `intermediaire`, `difficile` |
+
+La difficulté change la consigne donnée à l'IA (`DIFFICULTY_GUIDES` dans
+`backend/app/services/quiz_service.py`) ; les questions restent tirées du cours :
+
+- `facile` : faits écrits tels quels dans le cours, distracteurs clairement faux ;
+- `intermediaire` : compréhension, reformuler ou relier deux informations ;
+- `difficile` : raisonner ou appliquer une notion à un cas, distracteurs proches.
 
 Exemple dans Git Bash, depuis la racine :
 
@@ -115,7 +122,7 @@ Exemple dans Git Bash, depuis la racine :
 curl -X POST http://127.0.0.1:8000/api/quiz/generate \
   -F "file=@prototype-experimental/samples/cours.pdf;type=application/pdf" \
   -F "question_count=5" \
-  -F "level=10e"
+  -F "difficulty=difficile"
 ```
 
 Avec du texte seul : remplacer la ligne `file` par `-F "text=Le cours..."`.
@@ -156,7 +163,7 @@ Toutes les erreurs applicatives utilisent le même format :
 | 400 | ni PDF ni texte (`CONTENT_REQUIRED`), fichier sans nom (`FILE_REQUIRED`), formulaire HTTP mal formé |
 | 413 | PDF > 5 Mio, corps HTTP trop gros, > 50 pages ou > 60 000 caractères |
 | 415 | extension, type MIME ou signature non PDF (`INVALID_FILE_TYPE`) |
-| 422 | fichier vide, PDF endommagé/protégé, aucun texte, texte trop court, nombre/niveau invalide |
+| 422 | fichier vide, PDF endommagé/protégé, aucun texte, texte trop court, nombre ou difficulté invalide (`INVALID_DIFFICULTY`) |
 | 422 | contenu insuffisant selon le LLM (`INSUFFICIENT_CONTENT`) ou refus (`AI_REFUSED`) |
 | 502 | fournisseur indisponible ou quiz invalide/incomplet (`AI_INVALID_RESPONSE`) |
 | 503 | clé absente/refusée (`AI_NOT_CONFIGURED`) ou quota/limite fournisseur atteint |
@@ -185,7 +192,7 @@ backend/tests/                      tests sans crédit API
    corps HTTP, même si l'envoi n'annonce pas sa taille.
 2. Le service PDF vérifie le nom, le type, la taille et la signature `%PDF-`.
    `PdfReader` lit les pages et `extract_text()` récupère le texte.
-3. Le service quiz donne au modèle IA le texte du cours et des consignes : niveau,
+3. Le service quiz donne au modèle IA le texte du cours et des consignes : difficulté,
    nombre de questions, 4 choix et aucune information externe. Une liste vide
    est autorisée pour signaler que le contenu est insuffisant.
 4. L'appel `chat.completions` (commun à NVIDIA, OpenRouter et OpenAI) renvoie
@@ -224,7 +231,7 @@ utilisateur. Ce MVP est prévu pour les essais locaux.
 
 Le backend sert `public/` à la racine : l'interface et l'API ont la même
 adresse, donc le navigateur n'a pas besoin de CORS. L'interface envoie un
-`FormData` avec `file` et/ou `text`, `question_count` et `level` à
+`FormData` avec `file` et/ou `text`, `question_count` et `difficulty` à
 `/api/quiz/generate`. Elle convertit la réponse (`correct_answer` →
 `correctIndex`) dans `public/js/quiz-logic.js` (`fromServerQuiz`) et remplace
 les messages d'erreur par des textes pour les élèves (`public/js/api.js`).

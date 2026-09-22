@@ -127,7 +127,7 @@
               <span class="icon-box"><svg class="icon"><use href="#i-settings"/></svg></span>
               <div>
                 <h2 class="card__title">Réglages</h2>
-                <p class="card__subtitle">Adapte le quiz à ton niveau.</p>
+                <p class="card__subtitle">Choisis la longueur et la difficulté.</p>
               </div>
             </div>
 
@@ -145,14 +145,24 @@
               </div>
             </fieldset>
 
-            <div class="field">
-              <label class="field__label" for="level">Niveau scolaire</label>
-              <select id="level" name="level" class="input select" aria-describedby="level-hint">
-                <option value="primaire">École primaire</option>
-                <option value="cycle">Cycle d'orientation (CO)</option>
-              </select>
-              <p id="level-hint" class="field__hint">L'IA adapte le vocabulaire des questions.</p>
-            </div>
+            <fieldset class="field" aria-describedby="difficulty-hint">
+              <legend class="field__label">Difficulté</legend>
+              <div class="segmented segmented--three">
+                <label class="segmented__option">
+                  <input type="radio" name="difficulty" value="facile">
+                  <span>Facile</span>
+                </label>
+                <label class="segmented__option">
+                  <input type="radio" name="difficulty" value="intermediaire" checked>
+                  <span>Intermédiaire</span>
+                </label>
+                <label class="segmented__option">
+                  <input type="radio" name="difficulty" value="difficile">
+                  <span>Difficile</span>
+                </label>
+              </div>
+              <p id="difficulty-hint" class="field__hint"></p>
+            </fieldset>
 
             <button type="submit" class="btn btn--primary btn--lg btn--block" id="generate-btn">
               <svg class="icon" id="generate-icon"><use href="#i-spark"/></svg>

@@ -34,12 +34,12 @@ export async function fetchStatus() {
 
 /**
  * Demande la génération d'un quiz à partir d'un PDF, d'un texte collé, ou des deux.
- * @param {{ text: string, file: File|null, count: number, level: string, title: string }} params
+ * @param {{ text: string, file: File|null, count: number, difficulty: string, title: string }} params
  * @param {AbortSignal} cancelSignal  signal déclenché quand l'utilisateur clique sur « Annuler »
  * @returns {Promise<{ quiz: object, warnings: string[] }>}
  * @throws {ApiError} avec un message compréhensible par l'utilisateur
  */
-export async function requestQuiz({ text, file, count, level, title }, cancelSignal) {
+export async function requestQuiz({ text, file, count, difficulty, title }, cancelSignal) {
   const signal = AbortSignal.any([cancelSignal, AbortSignal.timeout(GENERATE_TIMEOUT_MS)]);
 
   // FormData : le navigateur choisit lui-même l'en-tête multipart (ne pas définir Content-Type).
@@ -47,7 +47,7 @@ export async function requestQuiz({ text, file, count, level, title }, cancelSig
   if (file) form.append('file', file);
   if (text) form.append('text', text);
   form.append('question_count', String(count));
-  form.append('level', level);
+  form.append('difficulty', difficulty);
 
   let response;
   try {

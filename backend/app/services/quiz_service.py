@@ -13,13 +13,30 @@ from ..config import (
     AI_TIMEOUT_SECONDS, MAX_QUESTIONS, MAX_TEXT_CHARACTERS, MIN_QUESTIONS, MIN_TEXT_CHARACTERS, ai_settings,
 )
 from ..errors import ApiError
-from ..models import LLMQuiz, Quiz, SchoolLevel
+from ..models import Difficulty, LLMQuiz, Quiz
 
 JSON_FORMAT = (
     'Reponds uniquement avec un objet JSON, sans texte autour, de la forme : '
     '{"questions": [{"question": "...", "choices": ["...", "...", "...", "..."], '
     '"correct_answer": 0, "explanation": "..."}]}'
 )
+
+
+# Consigne donnee a l'IA pour chaque difficulte ; les questions restent tirees du document.
+DIFFICULTY_GUIDES: dict[str, str] = {
+    "facile": (
+        "Difficulte FACILE : questions directes sur des faits ecrits explicitement dans le document, "
+        "formulations courtes et vocabulaire simple, distracteurs clairement differents de la bonne reponse."
+    ),
+    "intermediaire": (
+        "Difficulte INTERMEDIAIRE : questions de comprehension qui demandent de reformuler "
+        "ou de relier deux informations du document, distracteurs plausibles."
+    ),
+    "difficile": (
+        "Difficulte DIFFICILE : questions qui demandent de raisonner, de comparer ou d'appliquer "
+        "une notion du document a un cas precis, distracteurs proches et credibles mais faux selon le document."
+    ),
+}
 
 
 def extract_json(content: str) -> str:
@@ -31,7 +48,7 @@ def extract_json(content: str) -> str:
     return content[start:end + 1]
 
 
-def generate_quiz(text: str, question_count: int = 5, level: SchoolLevel = "cycle") -> Quiz:
+def generate_quiz(text: str, question_count: int = 5, difficulty: Difficulty = "intermediaire") -> Quiz:
     api_key, base_url, model = ai_settings()
     if not api_key:
         raise ApiError(503, "AI_NOT_CONFIGURED", "Configurer AI_API_KEY sur le backend.")
@@ -44,7 +61,7 @@ def generate_quiz(text: str, question_count: int = 5, level: SchoolLevel = "cycl
 
     instructions = (
         "Tu prepares un quiz de revision en francais pour des eleves. "
-        f"Adapte le vocabulaire et la difficulte au niveau scolaire {level}. "
+        f"{DIFFICULTY_GUIDES[difficulty]} "
         f"Genere exactement {question_count} questions QCM distinctes avec 4 choix chacune, "
         "une seule bonne reponse et une courte explication. "
         "correct_answer est l'index du bon choix : 0=A, 1=B, 2=C, 3=D. "

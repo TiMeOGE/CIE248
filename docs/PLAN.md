@@ -57,7 +57,7 @@ Le contrat détaillé (codes d'erreur compris) est dans
 - `text` : texte collé (facultatif si `file` est fourni) ; avec les deux, le texte est ajouté après celui du PDF
 - le cours complet doit faire entre 200 et 60 000 caractères
 - `question_count` : 1 à 10 (l'interface propose 5 ou 10)
-- `level` : `primaire`, `cycle`, `9e`, `10e` ou `11e` (l'interface propose primaire et cycle)
+- `difficulty` : `facile`, `intermediaire` (par défaut) ou `difficile`
 
 **Réponse OK (200)**
 
@@ -102,7 +102,7 @@ tests/     fixtures/  *.test.js
 
 ## 6. Priorités
 
-- **MUST (démo)** : texte collé · 5 ou 10 questions · niveau Primaire / CO ·
+- **MUST (démo)** : texte collé · 5 ou 10 questions · difficulté Facile / Intermédiaire / Difficile ·
   génération IA + validation serveur · toutes les erreurs de la section 4 ·
   quiz, score, corrigé · mode démo hors ligne · limitation des générations
   (site public) · tests des parcours critiques · README, `.env.example`

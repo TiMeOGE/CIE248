@@ -95,15 +95,16 @@ class ApiTests(unittest.TestCase):
                     self.assertIn("error", response.json())
         generate.assert_not_called()
 
-    def test_question_count_and_level_validation(self):
+    def test_question_count_and_difficulty_validation(self):
         with patch.object(main, "generate_quiz") as generate:
             for count in ("0", "11", "-1", "1.5", "abc"):
                 with self.subTest(count=count):
                     response = self.post_pdf(question_count=count)
                     self.assertEqual(response.status_code, 422)
                     self.assertEqual(response.json()["error"]["code"], "INVALID_QUESTION_COUNT")
-            response = self.post_pdf(level="INSTRUCTION_SECRETE")
+            response = self.post_pdf(difficulty="INSTRUCTION_SECRETE")
             self.assertEqual(response.status_code, 422)
+            self.assertEqual(response.json()["error"]["code"], "INVALID_DIFFICULTY")
             self.assertNotIn("INSTRUCTION_SECRETE", response.text)
         generate.assert_not_called()
 
@@ -127,12 +128,12 @@ class ApiTests(unittest.TestCase):
     def test_pdf_to_json_and_count_boundaries(self):
         for count in (1, 5, 10):
             with self.subTest(count=count), patch.object(main, "generate_quiz", return_value=Quiz(**quiz_data(count))) as generate:
-                response = self.post_pdf(question_count=count, level="10e")
+                response = self.post_pdf(question_count=count, difficulty="difficile")
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertEqual(response.json(), quiz_data(count))
-                text, actual_count, level = generate.call_args.args
+                text, actual_count, difficulty = generate.call_args.args
                 self.assertIn(COURSE, text)
-                self.assertEqual((actual_count, level), (count, "10e"))
+                self.assertEqual((actual_count, difficulty), (count, "difficile"))
 
     def test_missing_api_key(self):
         response = self.post_pdf()
@@ -159,7 +160,7 @@ class ApiTests(unittest.TestCase):
         operation = schema["paths"]["/api/quiz/generate"]["post"]
         form = operation["requestBody"]["content"]["multipart/form-data"]["schema"]
         fields = schema["components"]["schemas"][form["$ref"].split("/")[-1]]
-        self.assertEqual(set(fields["properties"]), {"file", "text", "question_count", "level"})
+        self.assertEqual(set(fields["properties"]), {"file", "text", "question_count", "difficulty"})
         self.assertNotIn("required", fields)
 
     def test_cors_allowed_denied_and_validation_errors(self):

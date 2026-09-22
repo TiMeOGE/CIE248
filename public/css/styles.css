@@ -650,6 +650,21 @@ main {
   outline-offset: 3px;
 }
 
+/* Trois choix (difficulté) : toujours sur une ligne, texte un peu plus petit */
+.segmented--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmented--three .segmented__option span {
+  padding: 0 var(--space-1);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.segmented + .field__hint {
+  margin-top: var(--space-2);
+}
+
 /* Bandeaux (informations, avertissements, erreurs) */
 .banner {
   display: flex;

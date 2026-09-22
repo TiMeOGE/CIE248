@@ -17,7 +17,7 @@ from .config import (
 )
 from .errors import ApiError
 from .middleware import RequestSizeLimit
-from .models import ErrorResponse, Quiz, SchoolLevel
+from .models import Difficulty, ErrorResponse, Quiz
 from .services.pdf_service import extract_text, validate_upload
 from .services.quiz_service import generate_quiz
 
@@ -47,8 +47,8 @@ def create_app() -> FastAPI:
             return error_response(415, "INVALID_FILE_TYPE", "Le champ file doit contenir un fichier PDF.")
         if "question_count" in fields:
             return error_response(422, "INVALID_QUESTION_COUNT", "question_count doit etre un entier entre 1 et 10.")
-        if "level" in fields:
-            return error_response(422, "INVALID_LEVEL", "Choisir primaire, cycle, 9e, 10e ou 11e.")
+        if "difficulty" in fields:
+            return error_response(422, "INVALID_DIFFICULTY", "Choisir facile, intermediaire ou difficile.")
         return error_response(422, "INVALID_INPUT", "Les champs de la requete sont invalides.")
 
     @app.exception_handler(HTTPException)
@@ -77,7 +77,7 @@ def create_app() -> FastAPI:
         file: Annotated[UploadFile | None, File(description="PDF contenant du texte, maximum 5 Mio.")] = None,
         text: Annotated[str, Form(description="Texte du cours colle, seul ou en complement du PDF.")] = "",
         question_count: Annotated[int, Form(ge=MIN_QUESTIONS, le=MAX_QUESTIONS)] = 5,
-        level: Annotated[SchoolLevel, Form()] = "cycle",
+        difficulty: Annotated[Difficulty, Form()] = "intermediaire",
     ) -> Quiz:
         pasted = text.strip()
         parts = []
@@ -98,7 +98,7 @@ def create_app() -> FastAPI:
             raise ApiError(413, "TEXT_TOO_LONG", "Le cours depasse 60 000 caracteres.")
         if len(course) < MIN_TEXT_CHARACTERS:
             raise ApiError(422, "INSUFFICIENT_TEXT", "Le cours doit contenir au moins 200 caracteres de texte.")
-        return generate_quiz(course, question_count, level)
+        return generate_quiz(course, question_count, difficulty)
 
     # Interface web (public/) servie a la racine, apres les routes de l'API.
     app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
