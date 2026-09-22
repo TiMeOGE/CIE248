@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 from .config import MAX_QUESTIONS, MIN_QUESTIONS
 
 NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-SchoolLevel = Literal["primaire", "cycle", "9e", "10e", "11e"]
+Difficulty = Literal["facile", "intermediaire", "difficile"]
 
 
 class Question(BaseModel):

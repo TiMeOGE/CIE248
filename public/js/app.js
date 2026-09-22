@@ -29,7 +29,12 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
-const LEVEL_LABELS = { primaire: 'École primaire', cycle: "Cycle d'orientation" };
+// Difficultés proposées : libellé affiché et explication sous les boutons.
+const DIFFICULTIES = {
+  facile: { label: 'Facile', hint: 'Questions directes sur ce qui est écrit dans le cours.' },
+  intermediaire: { label: 'Intermédiaire', hint: 'Questions de compréhension : reformuler ou relier deux idées du cours.' },
+  difficile: { label: 'Difficile', hint: 'Questions de réflexion : appliquer le cours à un cas, réponses proches entre elles.' },
+};
 const LETTERS = ['A', 'B', 'C', 'D'];
 const RING_LENGTH = 2 * Math.PI * 54; // circonférence de l'anneau de score (rayon 54 dans le SVG)
 const SLOW_GENERATION_SECONDS = 40;
@@ -40,7 +45,7 @@ const state = {
   generation: null, // pendant une génération : { controller, startedAt, timer }
   quiz: null, // quiz en cours : { title, questions }
   origin: 'demo', // 'ai' (généré par l'IA) ou 'demo' (préparé à l'avance)
-  level: 'primaire',
+  difficulty: 'intermediaire',
   warnings: [],
   answers: [], // pour chaque question : index du choix de l'élève, ou null
   current: 0, // index de la question affichée
@@ -137,6 +142,14 @@ function selectedCount() {
   return Number(document.querySelector('input[name="count"]:checked').value);
 }
 
+function selectedDifficulty() {
+  return document.querySelector('input[name="difficulty"]:checked').value;
+}
+
+function updateDifficultyHint() {
+  $('difficulty-hint').textContent = DIFFICULTIES[selectedDifficulty()].hint;
+}
+
 function fillExample() {
   const current = courseText.value.trim();
   if (current && current !== DEMO_COURSE && !confirm("Remplacer ton texte par le cours d'exemple ?")) return;
@@ -162,16 +175,16 @@ async function handleGenerate(event) {
   clearFieldError();
 
   const count = selectedCount();
-  const level = $('level').value;
+  const difficulty = selectedDifficulty();
   const title = file ? titleFromFileName(file.name) : '';
   startGenerationUi(count);
   try {
     const { quiz, warnings } = await requestQuiz(
-      { text: courseText.value.trim(), file, count, level, title },
+      { text: courseText.value.trim(), file, count, difficulty, title },
       state.generation.controller.signal,
     );
     stopGenerationUi();
-    startQuiz(quiz, { origin: 'ai', level, warnings });
+    startQuiz(quiz, { origin: 'ai', difficulty, warnings });
   } catch (error) {
     stopGenerationUi();
     if (error instanceof ApiError && error.code === 'CANCELLED') {
@@ -232,7 +245,7 @@ function hideGenerateError() {
 function startDemo() {
   hideGenerateError();
   const questions = DEMO_QUIZ.questions.slice(0, selectedCount());
-  startQuiz({ title: DEMO_QUIZ.title, questions }, { origin: 'demo', level: $('level').value, warnings: [] });
+  startQuiz({ title: DEMO_QUIZ.title, questions }, { origin: 'demo', difficulty: selectedDifficulty(), warnings: [] });
 }
 
 /** Affiche un bandeau si le serveur ou l'IA ne sont pas disponibles. */
@@ -252,10 +265,10 @@ async function checkServer() {
 }
 
 /* 5. Écran 2 : Quiz ------------------------------------------- */
-function startQuiz(quiz, { origin, level, warnings }) {
+function startQuiz(quiz, { origin, difficulty, warnings }) {
   state.quiz = prepareQuiz(quiz); // mélange les choix de chaque question
   state.origin = origin;
-  state.level = level;
+  state.difficulty = difficulty;
   state.warnings = warnings;
   state.answers = Array(state.quiz.questions.length).fill(null);
   state.current = 0;
@@ -266,7 +279,7 @@ function startQuiz(quiz, { origin, level, warnings }) {
   $('quiz-title').textContent = state.quiz.title.trim() || 'Ton quiz';
   $('quiz-meta').textContent =
     origin === 'ai'
-      ? `${total} questions · ${LEVEL_LABELS[level] ?? ''}`
+      ? `${total} questions · ${DIFFICULTIES[difficulty]?.label ?? ''}`
       : `${total} questions · Préparé à l'avance, sans IA`;
 
   $('quiz-warnings-text').replaceChildren(...warnings.map((warning) => element('p', '', warning)));
@@ -486,6 +499,9 @@ function init() {
     clearFieldError();
   });
   $('file-clear').addEventListener('click', clearFile);
+  for (const radio of document.querySelectorAll('input[name="difficulty"]')) {
+    radio.addEventListener('change', updateDifficultyHint);
+  }
   $('example-btn').addEventListener('click', fillExample);
   $('demo-btn').addEventListener('click', startDemo);
   $('error-demo-btn').addEventListener('click', startDemo);
@@ -498,7 +514,7 @@ function init() {
 
   // Écran 3
   $('retry-btn').addEventListener('click', () =>
-    startQuiz(state.quiz, { origin: state.origin, level: state.level, warnings: state.warnings }),
+    startQuiz(state.quiz, { origin: state.origin, difficulty: state.difficulty, warnings: state.warnings }),
   );
   $('new-btn').addEventListener('click', goHome);
   $('filter-all').addEventListener('click', () => setReviewFilter('all'));
@@ -513,6 +529,7 @@ function init() {
 
   setupHelpDialog();
   updateCounter();
+  updateDifficultyHint();
   updateFileUi(); // le navigateur peut garder le PDF choisi après un rechargement
   checkServer();
 }
