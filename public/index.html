@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Quiz IA transforme un texte de cours en quiz à choix multiples, avec un score et un corrigé.">
+  <title>Quiz IA · Ton cours devient un quiz</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235956dc'/%3E%3Cpath d='M9 10h5a3 3 0 0 1 3 3v10a2.5 2.5 0 0 0-2.5-2.5H9zM23 10h-5a3 3 0 0 0-3 3v10a2.5 2.5 0 0 1 2.5-2.5H23z' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <!-- Icônes (style Lucide), réutilisées avec <use href="#i-nom">. -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h6"/><path d="M8 13h8M8 17h6"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.3 6.2L20.5 12l-6.2 2.3L12 20.5l-2.3-6.2L3.5 12l6.2-2.8z"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8 8 9.5 4.6-1.5 8-4.5 8-9.5V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  </svg>
+
+  <a class="skip-link" href="#main">Aller au contenu</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="./" aria-label="Quiz IA, retour à l'accueil">
+        <span class="brand__logo"><svg class="icon"><use href="#i-book"/></svg></span>
+        <span>Quiz <span class="brand__accent">IA</span></span>
+        <span class="pill pill--primary">Prototype</span>
+      </a>
+      <button type="button" class="btn btn--secondary btn--sm" id="help-open">
+        <svg class="icon"><use href="#i-help"/></svg>
+        <span>Comment ça marche ?</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+
+    <!-- ============ Écran 1 : Créer ============ -->
+    <section id="screen-home" class="screen" aria-labelledby="home-title">
+      <div class="hero">
+        <p class="eyebrow">Moins relire, mieux comprendre</p>
+        <h1 id="home-title" class="hero__title" tabindex="-1">Ton cours devient <em>un quiz.</em></h1>
+        <p class="hero__lead">Colle ton cours et choisis tes réglages. L'IA prépare des questions pour t'entraîner, avec un corrigé à la fin.</p>
+      </div>
+
+      <ol class="stepper" aria-label="Étapes">
+        <li class="stepper__step is-current" aria-current="step"><span class="stepper__num">1</span>Ton cours</li>
+        <li class="stepper__step"><span class="stepper__num">2</span>Le quiz</li>
+        <li class="stepper__step"><span class="stepper__num">3</span>Ton résultat</li>
+      </ol>
+
+      <div id="status-banner" class="banner banner--warning" role="status" hidden>
+        <svg class="icon banner__icon"><use href="#i-alert"/></svg>
+        <div class="banner__body">
+          <p class="banner__title" id="status-title"></p>
+          <p id="status-text"></p>
+        </div>
+      </div>
+
+      <form id="create-form" novalidate>
+        <fieldset id="create-fields" class="home-grid">
+          <legend class="visually-hidden">Créer un quiz</legend>
+
+          <div class="card">
+            <div class="card__head">
+              <span class="icon-box"><svg class="icon"><use href="#i-file"/></svg></span>
+              <div>
+                <h2 class="card__title">Ton cours</h2>
+                <p class="card__subtitle">Un chapitre, une fiche ou une leçon, en texte.</p>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="field__top">
+                <label class="field__label" for="course-text">Texte du cours</label>
+                <button type="button" class="btn btn--ghost btn--sm" id="example-btn">Remplir avec un cours d'exemple</button>
+              </div>
+              <textarea id="course-text" name="text" class="input textarea" rows="12" spellcheck="true"
+                aria-describedby="course-hint course-error"
+                placeholder="Exemple : L'eau circule continuellement entre les océans, les continents et l'atmosphère…"></textarea>
+              <div class="field__meta">
+                <p id="course-hint" class="field__hint">Entre 200 et 15&#8239;000 caractères.</p>
+                <p id="course-count" class="field__count">0 / 15&#8239;000</p>
+              </div>
+              <p id="course-error" class="field__error" hidden>
+                <svg class="icon"><use href="#i-alert"/></svg><span id="course-error-text"></span>
+              </p>
+            </div>
+
+            <p class="note">
+              <svg class="icon"><use href="#i-shield"/></svg>
+              <span>N'écris pas de données personnelles (noms d'élèves, notes…). Ton texte est envoyé à un service d'IA externe pour créer le quiz.</span>
+            </p>
+          </div>
+
+          <div class="card card--settings">
+            <div class="card__head">
+              <span class="icon-box"><svg class="icon"><use href="#i-settings"/></svg></span>
+              <div>
+                <h2 class="card__title">Réglages</h2>
+                <p class="card__subtitle">Adapte le quiz à ton niveau.</p>
+              </div>
+            </div>
+
+            <fieldset class="field">
+              <legend class="field__label">Nombre de questions</legend>
+              <div class="segmented">
+                <label class="segmented__option">
+                  <input type="radio" name="count" value="5" checked>
+                  <span>5 questions</span>
+                </label>
+                <label class="segmented__option">
+                  <input type="radio" name="count" value="10">
+                  <span>10 questions</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="field">
+              <label class="field__label" for="level">Niveau scolaire</label>
+              <select id="level" name="level" class="input select" aria-describedby="level-hint">
+                <option value="primaire">École primaire</option>
+                <option value="cycle">Cycle d'orientation (CO)</option>
+              </select>
+              <p id="level-hint" class="field__hint">L'IA adapte le vocabulaire des questions.</p>
+            </div>
+
+            <button type="submit" class="btn btn--primary btn--lg btn--block" id="generate-btn">
+              <svg class="icon" id="generate-icon"><use href="#i-spark"/></svg>
+              <span class="spinner" id="generate-spinner" hidden></span>
+              <span id="generate-label">Générer le quiz</span>
+            </button>
+
+            <div class="divider"><span>ou</span></div>
+
+            <button type="button" class="btn btn--secondary btn--block" id="demo-btn">
+              <svg class="icon"><use href="#i-play"/></svg>
+              <span>Jouer au quiz de démonstration</span>
+            </button>
+            <p class="field__hint field__hint--center">Sans IA ni Internet, sur le cycle de l'eau.</p>
+          </div>
+        </fieldset>
+
+        <!-- Hors du fieldset : reste utilisable pendant la génération. -->
+        <div id="generation-panel" class="loading-panel" hidden>
+          <div class="loading-panel__bar" aria-hidden="true"><span></span></div>
+          <div class="loading-panel__body">
+            <p class="loading-panel__title" id="generation-text"></p>
+            <p class="loading-panel__hint">
+              <svg class="icon"><use href="#i-clock"/></svg>
+              <span id="generation-hint">En général entre 10 et 30 secondes.</span>
+              <span class="loading-panel__time" id="generation-time" aria-hidden="true">0 s</span>
+            </p>
+          </div>
+          <button type="button" class="btn btn--secondary btn--sm" id="cancel-btn">Annuler</button>
+        </div>
+
+        <div id="generate-error" class="banner banner--danger" role="alert" tabindex="-1" hidden>
+          <svg class="icon banner__icon"><use href="#i-alert"/></svg>
+          <div class="banner__body">
+            <p class="banner__title">La génération n'a pas abouti.</p>
+            <p id="generate-error-text"></p>
+            <div class="banner__actions">
+              <button type="submit" class="btn btn--primary btn--sm">
+                <svg class="icon"><use href="#i-retry"/></svg><span>Réessayer</span>
+              </button>
+              <button type="button" class="btn btn--secondary btn--sm" id="error-demo-btn">Jouer au quiz de démonstration</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ Écran 2 : Quiz ============ -->
+    <section id="screen-quiz" class="screen screen--narrow" aria-labelledby="quiz-title" hidden>
+      <div class="screen-head">
+        <div>
+          <p class="eyebrow" id="quiz-origin"></p>
+          <h1 id="quiz-title" class="screen-head__title" tabindex="-1"></h1>
+          <p class="screen-head__meta" id="quiz-meta"></p>
+        </div>
+        <button type="button" class="btn btn--secondary" id="quit-btn">
+          <svg class="icon"><use href="#i-x"/></svg><span>Quitter le quiz</span>
+        </button>
+      </div>
+
+      <ol class="stepper" aria-label="Étapes">
+        <li class="stepper__step is-done"><span class="stepper__num"><svg class="icon"><use href="#i-check"/></svg></span>Ton cours</li>
+        <li class="stepper__step is-current" aria-current="step"><span class="stepper__num">2</span>Le quiz</li>
+        <li class="stepper__step"><span class="stepper__num">3</span>Ton résultat</li>
+      </ol>
+
+      <div id="quiz-warnings" class="banner banner--info" role="status" hidden>
+        <svg class="icon banner__icon"><use href="#i-info"/></svg>
+        <div class="banner__body" id="quiz-warnings-text"></div>
+      </div>
+
+      <div class="card card--question">
+        <div class="question-top">
+          <p class="question-top__count" id="question-count"></p>
+          <p class="question-top__answered" id="answered-count"></p>
+        </div>
+        <div class="progress" id="progress" role="progressbar" aria-label="Questions répondues" aria-valuemin="0">
+          <div class="progress__fill" id="progress-fill"></div>
+        </div>
+
+        <fieldset class="choices">
+          <legend class="choices__legend">
+            <h2 class="question-text" id="question-text" tabindex="-1"></h2>
+          </legend>
+          <div class="choices__list" id="choice-list"></div>
+        </fieldset>
+
+        <div class="question-nav">
+          <button type="button" class="btn btn--secondary" id="prev-btn">
+            <svg class="icon"><use href="#i-arrow-left"/></svg><span>Précédente</span>
+          </button>
+          <button type="button" class="btn btn--primary" id="next-btn">
+            <span id="next-label">Suivante</span><svg class="icon"><use href="#i-arrow-right"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <nav class="dots" aria-label="Aller à une question">
+        <div class="dots__list" id="dots"></div>
+        <p class="dots__legend">En vert : questions déjà répondues. Tu peux changer tes réponses avant de terminer.</p>
+      </nav>
+    </section>
+
+    <!-- ============ Écran 3 : Résultat ============ -->
+    <section id="screen-results" class="screen screen--narrow" aria-labelledby="results-title" hidden>
+      <div class="screen-head">
+        <div>
+          <p class="eyebrow">Ton résultat</p>
+          <h1 id="results-title" class="screen-head__title" tabindex="-1"></h1>
+          <p class="screen-head__meta" id="results-meta"></p>
+        </div>
+      </div>
+
+      <ol class="stepper" aria-label="Étapes">
+        <li class="stepper__step is-done"><span class="stepper__num"><svg class="icon"><use href="#i-check"/></svg></span>Ton cours</li>
+        <li class="stepper__step is-done"><span class="stepper__num"><svg class="icon"><use href="#i-check"/></svg></span>Le quiz</li>
+        <li class="stepper__step is-current" aria-current="step"><span class="stepper__num">3</span>Ton résultat</li>
+      </ol>
+
+      <div class="card score-card">
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="score-ring__track" cx="60" cy="60" r="54"/>
+            <circle class="score-ring__arc" id="score-arc" cx="60" cy="60" r="54"/>
+          </svg>
+          <p class="score-ring__value"><strong id="score-fraction"></strong><span>bonnes réponses</span></p>
+        </div>
+        <div class="score-card__body">
+          <p class="score-card__text" id="score-text"></p>
+          <ul class="stats">
+            <li><strong id="score-percent"></strong> de réussite</li>
+            <li>Temps : <strong id="score-time"></strong></li>
+          </ul>
+          <div class="score-card__actions">
+            <button type="button" class="btn btn--primary" id="retry-btn">
+              <svg class="icon"><use href="#i-retry"/></svg><span>Refaire le quiz</span>
+            </button>
+            <button type="button" class="btn btn--secondary" id="new-btn">Créer un autre quiz</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="review" aria-labelledby="review-title">
+        <div class="review__head">
+          <h2 id="review-title" class="review__title">Corrigé</h2>
+          <div class="filter" role="group" aria-label="Filtrer le corrigé">
+            <button type="button" class="filter__btn" id="filter-all" aria-pressed="true"></button>
+            <button type="button" class="filter__btn" id="filter-wrong" aria-pressed="false"></button>
+          </div>
+        </div>
+        <div class="review__list" id="review-list"></div>
+        <p class="disclaimer" id="review-disclaimer"></p>
+      </section>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <p><strong>Quiz IA</strong> · Prototype du projet CIE 248 · Non affilié au DIP</p>
+      <p>Un outil pour s'entraîner, pas une évaluation officielle.</p>
+    </div>
+  </footer>
+
+  <!-- Messages lus par les lecteurs d'écran (invisible à l'écran). -->
+  <p id="live-status" class="visually-hidden" role="status"></p>
+
+  <dialog id="help-dialog" class="dialog" aria-labelledby="help-title">
+    <div class="dialog__head">
+      <h2 id="help-title">Comment ça marche ?</h2>
+      <button type="button" class="btn btn--ghost btn--icon" id="help-close" aria-label="Fermer l'aide">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <ol class="dialog__steps">
+      <li><strong>Colle ton cours.</strong> Un chapitre ou une fiche, en texte (entre 200 et 15&#8239;000 caractères).</li>
+      <li><strong>Choisis tes réglages</strong> puis clique sur « Générer le quiz ». L'IA prépare les questions à partir de ton texte uniquement.</li>
+      <li><strong>Réponds aux questions.</strong> À la fin, tu vois ton score et un corrigé avec l'extrait du cours qui justifie chaque réponse.</li>
+    </ol>
+    <h3>Bon à savoir</h3>
+    <ul class="dialog__list">
+      <li>L'IA peut se tromper : en cas de doute, vérifie dans ton cours ou demande à ton enseignant·e.</li>
+      <li>Ton texte est envoyé à un service d'IA externe : n'y mets pas de données personnelles.</li>
+      <li>Le quiz de démonstration fonctionne sans IA ni Internet.</li>
+    </ul>
+    <button type="button" class="btn btn--primary btn--block" id="help-done">J'ai compris</button>
+  </dialog>
+</body>
+</html>
