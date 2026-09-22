@@ -12,7 +12,7 @@ from backend.app.services import pdf_service, quiz_service
 from backend.tests.helpers import COURSE, make_pdf, quiz_data
 
 
-NVIDIA = {"AI_API_KEY": "test-key", "AI_BASE_URL": "https://integrate.api.nvidia.com/v1", "AI_MODEL": "z-ai/glm-5.3"}
+NVIDIA = {"AI_API_KEY": "test-key", "AI_BASE_URL": "https://integrate.api.nvidia.com/v1", "AI_MODEL": "nvidia/nemotron-3-super-120b-a12b"}
 
 
 class ServiceTests(unittest.TestCase):
@@ -69,7 +69,7 @@ class ServiceTests(unittest.TestCase):
             quiz = quiz_service.generate_quiz(COURSE, 3, "10e")
         self.assertEqual(quiz.model_dump(), quiz_data(3))
         self.assertEqual(self.url, "https://integrate.api.nvidia.com/v1/chat/completions")
-        self.assertEqual(self.request["model"], "z-ai/glm-5.3")
+        self.assertEqual(self.request["model"], "nvidia/nemotron-3-super-120b-a12b")
         system, user = self.request["messages"]
         self.assertIn("exactement 3", system["content"])
         self.assertIn("10e", system["content"])

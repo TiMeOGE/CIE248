@@ -38,12 +38,16 @@ utilise la bibliothèque `openai` et change seulement d'adresse. Dans
 
 | Fournisseur | `AI_BASE_URL` | `AI_MODEL` (exemple) | Où créer la clé |
 |---|---|---|---|
-| NVIDIA | `https://integrate.api.nvidia.com/v1` | `z-ai/glm-5.3` | build.nvidia.com, page du modèle, **Generate API Key** |
+| NVIDIA | `https://integrate.api.nvidia.com/v1` | `nvidia/nemotron-3-super-120b-a12b` | build.nvidia.com, page du modèle, **Generate API Key** |
 | OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-4.1-mini` | openrouter.ai/keys |
 | OpenAI | *(vide)* | `gpt-4.1-mini` (par défaut) | platform.openai.com |
 
 Le nom exact du modèle est celui affiché par le fournisseur (champ `model=`
-dans son exemple de code). L'ancienne variable `OPENAI_API_KEY` reste lue si
+dans son exemple de code). Mesuré le 22.09.2026 sur l'offre gratuite NVIDIA,
+avec le cours d'exemple : `nvidia/nemotron-3-super-120b-a12b` produit 5 questions
+en ~18 s et 10 en ~42 s ; `deepseek-ai/deepseek-v4.1-flash` répond aussi (plus
+lent) ; `z-ai/glm-5.3` et `z-ai/glm-5.3-flash` n'ont renvoyé aucune réponse en
+150 s (file d'attente saturée), d'où l'erreur `AI_TIMEOUT`. L'ancienne variable `OPENAI_API_KEY` reste lue si
 `AI_API_KEY` est vide. Les modèles gratuits (NVIDIA, modèles `:free`
 d'OpenRouter) ont des limites de débit et peuvent être lents : le délai
 maximum est de 120 secondes. Le texte du cours est envoyé au fournisseur
