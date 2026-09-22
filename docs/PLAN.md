@@ -112,31 +112,33 @@ tests/     fixtures/  *.test.js
 ## 7. Étapes
 
 Chaque étape = une branche + une Pull Request relue par l'équipe.
+Le nom de la branche est indiqué après « · ». Les branches existent déjà sur
+GitHub : faire `git merge main` dedans avant de commencer (voir le README).
 
 ### Semaine 2 (22.09) : mise en place
-- [ ] Étape 0 : ce plan (PR à relire)
-- [ ] Étape 1 : `.gitignore`, `.gitattributes`, `.env.example`, README v1, `AGENTS.md`, `CLAUDE.md`
-- [ ] Étape 2 : squelette Express : `/api/status`, `/api/generate` en mode factice (`AI_PROVIDER=mock`), `npm run dev`, `npm test`
-- [ ] Étape 3 : interface dans `public/`, inspirée de `prototype.html` (accueil, quiz, résultat, mode démo)
-- [ ] Étape 4 : premier appel réel à OpenRouter (script de test) pour choisir le modèle ⚠️ support du schéma JSON à vérifier
+- [x] Étape 0 : ce plan (PR #1, fusionnée)
+- [ ] Étape 1 · `chore/mise-en-place` : `.gitignore`, `.gitattributes`, `.env.example`, README v1, `AGENTS.md`, `CLAUDE.md`
+- [ ] Étape 2 · `feat/squelette-serveur` : squelette Express : `/api/status`, `/api/generate` en mode factice (`AI_PROVIDER=mock`), `npm run dev`, `npm test`
+- [ ] Étape 3 · `feat/interface` : interface dans `public/`, inspirée de `prototype.html` (accueil, quiz, résultat, mode démo)
+- [ ] Étape 4 · `feat/test-openrouter` : premier appel réel à OpenRouter (script de test) pour choisir le modèle ⚠️ support du schéma JSON à vérifier
 - **Jalon** : chacun lance le site en local et `npm test` passe
 
-### Semaine 3 (29.09) : vraie génération IA
+### Semaine 3 (29.09) : vraie génération IA · `feat/generation-ia`
 - [ ] Prompt + schéma JSON + `validate-quiz.js`
 - [ ] Gestion de toutes les erreurs (timeout, quota, JSON invalide, vide…)
 - [ ] Tests avec réponses IA simulées (valides et invalides)
 - [ ] Interface branchée : chargement, erreurs, avertissements
-- [ ] Limitation des générations par visiteur
+- [ ] Limitation des générations par visiteur · `feat/limitation-requetes`
 - **Jalon** : boucle complète avec la vraie IA sur 3 cours tests
 
-### Semaine 4 (06.10) : déploiement et finitions
+### Semaine 4 (06.10) : déploiement et finitions · `chore/deploiement-pi`
 - [ ] Installation sur le Raspberry Pi 5 (Node 24, service `systemd`, `.env` créé à la main)
 - [ ] Accès public via tunnel ⚠️ Tailscale Funnel ou Cloudflare Tunnel, à tester
 - [ ] Fonctionnalités SHOULD selon le temps restant
 - [ ] Passe accessibilité et UX
 - **Jalon** : le site marche depuis un téléphone en 4G. **Gel des fonctionnalités.**
 
-### Semaine 5 (13.10) : stabilisation, aucune nouvelle fonctionnalité
+### Semaine 5 (13.10) : stabilisation, aucune nouvelle fonctionnalité · `chore/stabilisation-demo`
 - [ ] Correction des bugs, `npm audit`, relecture complète
 - [ ] Scénario de démo répété 3 fois + plan B (`docs/DEMO.md`)
 - [ ] Vidéo de secours de la boucle complète
