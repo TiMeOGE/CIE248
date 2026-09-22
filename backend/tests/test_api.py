@@ -28,18 +28,52 @@ class ApiTests(unittest.TestCase):
             data=form,
         )
 
-    def test_health_and_root_without_llm(self):
+    def test_health_status_and_interface_without_llm(self):
         with patch.object(main, "generate_quiz") as generate:
-            self.assertEqual(self.client.get("/").json(), {"status": "ok", "service": "Quiz IA API"})
             response = self.client.get("/health")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), {"status": "healthy"})
+            self.assertEqual(self.client.get("/api/status").json(), {"aiConfigured": False})
+            with patch.dict(os.environ, {"AI_API_KEY": "test-key"}):
+                self.assertEqual(self.client.get("/api/status").json(), {"aiConfigured": True})
+            page = self.client.get("/")
+            self.assertEqual(page.status_code, 200)
+            self.assertIn('<script type="module" src="js/app.js">', page.text)
+            self.assertEqual(self.client.get("/js/api.js").status_code, 200)
+            self.assertEqual(self.client.get("/api/inconnu").status_code, 404)
         generate.assert_not_called()
 
-    def test_missing_file(self):
-        response = self.client.post("/api/quiz/generate", data={"question_count": 5})
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"]["code"], "FILE_REQUIRED")
+    def test_missing_content(self):
+        for data in ({"question_count": 5}, {"text": "   "}):
+            with self.subTest(data=data):
+                response = self.client.post("/api/quiz/generate", data=data)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["error"]["code"], "CONTENT_REQUIRED")
+
+    def test_pasted_text_alone_or_with_pdf(self):
+        with patch.object(main, "generate_quiz", return_value=Quiz(**quiz_data(1))) as generate:
+            response = self.client.post("/api/quiz/generate", data={"text": f"  {COURSE}  ", "question_count": 1})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(generate.call_args.args[0], COURSE)
+
+            short_pdf = make_pdf(text="Le Soleil chauffe l'eau des oceans.")
+            response = self.post_pdf(short_pdf, text=COURSE, question_count=1)
+            self.assertEqual(response.status_code, 200, response.text)
+            course = generate.call_args.args[0]
+            self.assertTrue(course.startswith("Le Soleil chauffe") and course.endswith(COURSE))
+
+        with patch.object(main, "generate_quiz") as generate:
+            for data, status, code in [
+                ({"text": "Trop court."}, 422, "INSUFFICIENT_TEXT"),
+                ({"text": "a" * 60_001}, 413, "TEXT_TOO_LONG"),
+            ]:
+                with self.subTest(code=code):
+                    response = self.client.post("/api/quiz/generate", data=data)
+                    self.assertEqual(response.status_code, status)
+                    self.assertEqual(response.json()["error"]["code"], code)
+            response = self.post_pdf(make_pdf(text="Trop court."), text="Encore court.")
+            self.assertEqual(response.json()["error"]["code"], "INSUFFICIENT_TEXT")
+        generate.assert_not_called()
 
     def test_reject_bad_files_before_llm(self):
         cases = [
@@ -125,8 +159,8 @@ class ApiTests(unittest.TestCase):
         operation = schema["paths"]["/api/quiz/generate"]["post"]
         form = operation["requestBody"]["content"]["multipart/form-data"]["schema"]
         fields = schema["components"]["schemas"][form["$ref"].split("/")[-1]]
-        self.assertEqual(set(fields["properties"]), {"file", "question_count", "level"})
-        self.assertIn("file", fields["required"])
+        self.assertEqual(set(fields["properties"]), {"file", "text", "question_count", "level"})
+        self.assertNotIn("required", fields)
 
     def test_cors_allowed_denied_and_validation_errors(self):
         for origin, allowed in [("http://localhost:5500", True), ("https://untrusted.example", False)]:

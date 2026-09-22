@@ -1,6 +1,8 @@
 # Backend Quiz IA : FastAPI
 
-Ce MVP du Module 248 reçoit un PDF pédagogique et retourne un quiz JSON.
+Ce MVP du Module 248 reçoit un cours (PDF et/ou texte collé) et retourne un
+quiz JSON. Il sert aussi l'interface web (`public/`) : une seule commande lance
+tout le site.
 Il reprend l'extraction `pypdf`, le prompt et les
 modèles Pydantic validés dans `prototype-experimental/main.py`, en les adaptant
 aux uploads HTTP et au nombre variable de questions. Le prototype expérimental
@@ -60,7 +62,8 @@ Depuis la racine du dépôt, avec l'environnement activé :
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-- API : http://127.0.0.1:8000/
+- **Site (interface)** : http://127.0.0.1:8000/
+- État de l'IA : http://127.0.0.1:8000/api/status
 - Santé : http://127.0.0.1:8000/health
 - Swagger : http://127.0.0.1:8000/docs
 - ReDoc : http://127.0.0.1:8000/redoc
@@ -86,15 +89,19 @@ plusieurs faits distincts afin de permettre le nombre de questions demandé.
 
 ## Contrat HTTP
 
-`GET /` retourne `{"status":"ok","service":"Quiz IA API"}`.
+`GET /` et les autres chemins hors API servent les fichiers de `public/`.
 `GET /health` retourne `{"status":"healthy"}` : il vérifie que le backend
 répond, sans appeler l'IA ni vérifier le quota ou la validité de la clé.
+`GET /api/status` retourne `{"aiConfigured": true}` si une clé et un modèle
+sont configurés (sans appeler l'IA ni vérifier que la clé est valide).
 
-`POST /api/quiz/generate` attend un formulaire **multipart/form-data** :
+`POST /api/quiz/generate` attend un formulaire **multipart/form-data** avec
+au moins `file` **ou** `text` :
 
 | Champ | Type | Valeur par défaut | Contraintes |
 |---|---|---|---|
-| `file` | fichier | obligatoire | PDF de 5 Mio maximum |
+| `file` | fichier | facultatif | PDF de 5 Mio maximum |
+| `text` | texte | facultatif | texte du cours collé ; avec un PDF, ajouté après son texte |
 | `question_count` | entier | `5` | de 1 à 10 |
 | `level` | texte | `cycle` | `primaire`, `cycle`, `9e`, `10e`, `11e` |
 
@@ -106,6 +113,10 @@ curl -X POST http://127.0.0.1:8000/api/quiz/generate \
   -F "question_count=5" \
   -F "level=10e"
 ```
+
+Avec du texte seul : remplacer la ligne `file` par `-F "text=Le cours..."`.
+Le cours complet (PDF + texte) doit faire entre 200 et 60 000 caractères ;
+avec un PDF et un texte, ce minimum porte sur l'ensemble.
 
 Réponse HTTP 200, exemple pour `question_count=1` :
 
@@ -138,7 +149,7 @@ Toutes les erreurs applicatives utilisent le même format :
 
 | HTTP | Situations / codes principaux |
 |---|---|
-| 400 | fichier absent (`FILE_REQUIRED`), formulaire HTTP mal formé |
+| 400 | ni PDF ni texte (`CONTENT_REQUIRED`), fichier sans nom (`FILE_REQUIRED`), formulaire HTTP mal formé |
 | 413 | PDF > 5 Mio, corps HTTP trop gros, > 50 pages ou > 60 000 caractères |
 | 415 | extension, type MIME ou signature non PDF (`INVALID_FILE_TYPE`) |
 | 422 | fichier vide, PDF endommagé/protégé, aucun texte, texte trop court, nombre/niveau invalide |
@@ -154,7 +165,7 @@ pas renvoyées au client.
 ## Organisation et trajet de la requête
 
 ```text
-backend/app/main.py                  routes, CORS et réponses d'erreur
+backend/app/main.py                  routes, CORS, réponses d'erreur et service de public/
 backend/app/models.py                structure des questions et du quiz
 backend/app/config.py                limites et fournisseur IA (.env)
 backend/app/errors.py                erreurs métier avec code HTTP
@@ -205,23 +216,18 @@ dans le projet ; les éventuels fichiers temporaires multipart sont fermés.
 Il n'y a ni comptes, ni authentification, ni base de données, ni limite par
 utilisateur. Ce MVP est prévu pour les essais locaux.
 
-## CORS et frontend séparé
+## Interface web et CORS
 
-`CORS_ORIGINS` dans `backend/.env` contient des origines séparées par des
-virgules. Par défaut, `localhost` et `127.0.0.1` sur les ports **5500** et
-**5173** sont autorisés. Une origine comprend le protocole, l'hôte et le port,
-sans chemin ni slash final. Ajouter l'origine exacte du serveur frontend puis
-redémarrer le backend. Éviter `*`.
+Le backend sert `public/` à la racine : l'interface et l'API ont la même
+adresse, donc le navigateur n'a pas besoin de CORS. L'interface envoie un
+`FormData` avec `file` et/ou `text`, `question_count` et `level` à
+`/api/quiz/generate`. Elle convertit la réponse (`correct_answer` →
+`correctIndex`) dans `public/js/quiz-logic.js` (`fromServerQuiz`) et remplace
+les messages d'erreur par des textes pour les élèves (`public/js/api.js`).
 
-Le frontend doit envoyer un objet JavaScript `FormData` avec `file`,
-`question_count` et `level` à l'URL complète du backend. Ne pas définir
-manuellement `Content-Type` : le navigateur doit ajouter la frontière multipart.
-
-**Compatibilité :** l'interface présente sur `origin/main` lors de l'inspection
-utilise encore `/api/status` et `/api/generate`, avec du texte JSON et des champs
-`correctIndex`, `sourceQuote`. Le backend demandé ici expose le nouveau contrat
-PDF `/api/quiz/generate` avec `correct_answer`. Le raccordement de cette interface
-reste à faire séparément ; la maquette HTML n'a pas été modifiée.
+`CORS_ORIGINS` dans `backend/.env` ne sert que si une autre page, sur une autre
+adresse, appelle l'API. Il contient des origines séparées par des virgules
+(protocole, hôte et port, sans chemin ni slash final). Éviter `*`.
 
 ## Tests
 

@@ -18,82 +18,76 @@ texte collé → paramètres → génération IA → validation → quiz → sco
 | Sujet | Décision |
 |---|---|
 | Qui code | Claude code, l'équipe relit et teste chaque étape avant fusion |
-| Serveur | Node.js 24 LTS + Express 5 (un seul langage, JavaScript) |
-| Interface | HTML + CSS + JavaScript natif, sans framework ni étape de build |
-| Fournisseur IA | OpenRouter (API au format « chat/completions ») |
+| Serveur | ~~Node.js 24 + Express 5~~ → **Python + FastAPI** (`backend/`), repris du prototype expérimental (PR n°4) |
+| Interface | HTML + CSS + JavaScript natif, sans framework ni étape de build, **servie par le backend** |
+| Fournisseur IA | ~~OpenRouter seul~~ → tout fournisseur compatible OpenAI (`chat/completions`) : **NVIDIA**, OpenRouter ou OpenAI, choisi dans `backend/.env` |
 | Prototype | `prototype.html` reste **intact** à la racine : c'est la référence visuelle |
 | GitHub Pages | Reste actif et continue d'afficher `prototype.html` (maquette statique) |
 | Hébergement réel | Raspberry Pi 5, accessible **publiquement sur Internet** |
-| Format du quiz | Voir section 4 (avec extrait du cours) |
+| Format du quiz | Voir section 4 (**sans** extrait du cours pour l'instant : l'explication suffit) |
+| Import du cours | PDF **et/ou** texte collé |
 
 ## 3. Architecture
 
 ```
-Navigateur ──POST /api/generate──▶ Serveur Express (Raspberry Pi)
-                                      1. vérifie le texte et les paramètres
-                                      2. envoie prompt + schéma JSON à OpenRouter
-                                         (clé lue dans .env, jamais envoyée au navigateur)
-                                      3. vérifie et nettoie les questions reçues
-Navigateur ◀──quiz ou erreur claire──┘
+Navigateur ──GET /──────────────────▶ Backend FastAPI (Raspberry Pi) : sert public/
+Navigateur ──POST /api/quiz/generate─▶ Backend FastAPI
+             (PDF et/ou texte)           1. vérifie le PDF, extrait son texte, ajoute le texte collé
+                                         2. envoie prompt + format JSON au fournisseur IA
+                                            (clé lue dans backend/.env, jamais envoyée au navigateur)
+                                         3. valide les questions reçues (Pydantic)
+Navigateur ◀──quiz ou erreur claire─────┘
     4. l'élève répond, le score est calculé dans le navigateur
 ```
 
 ## 4. Contrats
 
-**État du serveur** `GET /api/status` : utilisé par l'interface pour afficher un bandeau si l'IA est indisponible.
+Le contrat détaillé (codes d'erreur compris) est dans
+[`backend/README.md`](../backend/README.md#contrat-http). En résumé :
+
+**État du serveur** `GET /api/status` : l'interface affiche un bandeau si l'IA n'est pas configurée.
 
 ```json
-{ "status": "ok", "aiConfigured": true }
+{ "aiConfigured": true }
 ```
 
-**Requête** `POST /api/generate`
+**Requête** `POST /api/quiz/generate`, formulaire `multipart/form-data` :
 
-```json
-{ "text": "…cours…", "count": 5, "level": "primaire" }
-```
-
-- `text` : 200 à 15 000 caractères, comptés **sans les espaces du début et de la fin**
-- `count` : `5` ou `10`
-- `level` : `"primaire"` ou `"cycle"` (cycle d'orientation)
+- `file` : PDF avec du texte sélectionnable, 5 Mio maximum (facultatif si `text` est fourni)
+- `text` : texte collé (facultatif si `file` est fourni) ; avec les deux, le texte est ajouté après celui du PDF
+- le cours complet doit faire entre 200 et 60 000 caractères
+- `question_count` : 1 à 10 (l'interface propose 5 ou 10)
+- `level` : `primaire`, `cycle`, `9e`, `10e` ou `11e` (l'interface propose primaire et cycle)
 
 **Réponse OK (200)**
 
 ```json
 {
-  "quiz": {
-    "title": "Le cycle de l'eau",
-    "questions": [
-      {
-        "question": "Que se passe-t-il pendant la condensation ?",
-        "choices": ["…", "…", "…", "…"],
-        "correctIndex": 2,
-        "explanation": "…",
-        "sourceQuote": "extrait exact du cours"
-      }
-    ]
-  },
-  "warnings": []
+  "questions": [
+    {
+      "question": "Que se passe-t-il pendant la condensation ?",
+      "choices": ["…", "…", "…", "…"],
+      "correct_answer": 2,
+      "explanation": "…"
+    }
+  ]
 }
 ```
+
+L'interface convertit ce format (`correct_answer` → `correctIndex`) dans
+`public/js/quiz-logic.js` (`fromServerQuiz`). Le titre du quiz vient du nom du PDF.
 
 **Réponse en erreur**
 
 ```json
-{ "error": { "code": "AI_TIMEOUT", "message": "Message clair en français." } }
+{ "error": { "code": "AI_TIMEOUT", "message": "Message technique." } }
 ```
 
-| Code | HTTP | Cas |
-|---|---|---|
-| `INVALID_INPUT` | 400 | Texte vide, trop court (< 200 car.), paramètres invalides |
-| `TEXT_TOO_LONG` | 413 | Texte > 15 000 caractères |
-| `RATE_LIMITED` | 429 | Trop de générations depuis ce visiteur |
-| `AI_NOT_CONFIGURED` | 503 | Clé absente ou refusée |
-| `AI_UNAVAILABLE` | 502 | Fournisseur en panne, quota épuisé, réseau |
-| `AI_TIMEOUT` | 504 | Pas de réponse dans le délai |
-| `AI_INVALID_RESPONSE` | 502 | Réponse vide, JSON invalide ou tronqué |
-| `NO_USABLE_QUESTIONS` | 422 | Aucune question valide après vérification |
+L'interface remplace ce message par un texte adapté aux élèves (`public/js/api.js`).
 
 ## 5. Structure prévue
+
+> Structure d'origine, remplacée : le serveur est `backend/` (Python), voir son README.
 
 ```
 prototype.html            maquette d'origine (NE PAS MODIFIER)

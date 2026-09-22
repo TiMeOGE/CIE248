@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Quiz IA transforme un texte de cours en quiz à choix multiples, avec un score et un corrigé.">
+  <meta name="description" content="Quiz IA transforme un cours (PDF ou texte) en quiz à choix multiples, avec un score et un corrigé.">
   <title>Quiz IA · Ton cours devient un quiz</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235956dc'/%3E%3Cpath d='M9 10h5a3 3 0 0 1 3 3v10a2.5 2.5 0 0 0-2.5-2.5H9zM23 10h-5a3 3 0 0 0-3 3v10a2.5 2.5 0 0 1 2.5-2.5H23z' fill='none' stroke='white' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
@@ -54,7 +54,7 @@
       <div class="hero">
         <p class="eyebrow">Moins relire, mieux comprendre</p>
         <h1 id="home-title" class="hero__title" tabindex="-1">Ton cours devient <em>un quiz.</em></h1>
-        <p class="hero__lead">Colle ton cours et choisis tes réglages. L'IA prépare des questions pour t'entraîner, avec un corrigé à la fin.</p>
+        <p class="hero__lead">Ajoute ton cours en PDF ou colle son texte, puis choisis tes réglages. L'IA prépare des questions pour t'entraîner, avec un corrigé à la fin.</p>
       </div>
 
       <ol class="stepper" aria-label="Étapes">
@@ -80,21 +80,36 @@
               <span class="icon-box"><svg class="icon"><use href="#i-file"/></svg></span>
               <div>
                 <h2 class="card__title">Ton cours</h2>
-                <p class="card__subtitle">Un chapitre, une fiche ou une leçon, en texte.</p>
+                <p class="card__subtitle">Un PDF, un texte collé, ou les deux.</p>
               </div>
             </div>
 
             <div class="field">
+              <label class="field__label" for="course-file">Fichier PDF <span class="field__optional">(facultatif)</span></label>
+              <div class="file-picker">
+                <input type="file" id="course-file" name="file" class="file-picker__input"
+                  accept="application/pdf,.pdf" aria-describedby="file-hint file-error">
+                <button type="button" class="btn btn--ghost btn--sm" id="file-clear" hidden>
+                  <svg class="icon"><use href="#i-x"/></svg><span>Retirer le PDF</span>
+                </button>
+              </div>
+              <p id="file-hint" class="field__hint">5 Mo maximum. Le texte doit être sélectionnable : les scans ne sont pas lus.</p>
+              <p id="file-error" class="field__error" hidden>
+                <svg class="icon"><use href="#i-alert"/></svg><span id="file-error-text"></span>
+              </p>
+            </div>
+
+            <div class="field">
               <div class="field__top">
-                <label class="field__label" for="course-text">Texte du cours</label>
+                <label class="field__label" for="course-text">Texte du cours <span class="field__optional" id="text-optional" hidden>(facultatif avec un PDF)</span></label>
                 <button type="button" class="btn btn--ghost btn--sm" id="example-btn">Remplir avec un cours d'exemple</button>
               </div>
               <textarea id="course-text" name="text" class="input textarea" rows="12" spellcheck="true"
                 aria-describedby="course-hint course-error"
                 placeholder="Exemple : L'eau circule continuellement entre les océans, les continents et l'atmosphère…"></textarea>
               <div class="field__meta">
-                <p id="course-hint" class="field__hint">Entre 200 et 15&#8239;000 caractères.</p>
-                <p id="course-count" class="field__count">0 / 15&#8239;000</p>
+                <p id="course-hint" class="field__hint">Entre 200 et 60&#8239;000 caractères.</p>
+                <p id="course-count" class="field__count">0 / 60&#8239;000</p>
               </div>
               <p id="course-error" class="field__error" hidden>
                 <svg class="icon"><use href="#i-alert"/></svg><span id="course-error-text"></span>
@@ -103,7 +118,7 @@
 
             <p class="note">
               <svg class="icon"><use href="#i-shield"/></svg>
-              <span>N'écris pas de données personnelles (noms d'élèves, notes…). Ton texte est envoyé à un service d'IA externe pour créer le quiz.</span>
+              <span>N'écris pas de données personnelles (noms d'élèves, notes…). Ton cours est envoyé à un service d'IA externe pour créer le quiz.</span>
             </p>
           </div>
 
@@ -162,7 +177,7 @@
             <p class="loading-panel__title" id="generation-text"></p>
             <p class="loading-panel__hint">
               <svg class="icon"><use href="#i-clock"/></svg>
-              <span id="generation-hint">En général entre 10 et 30 secondes.</span>
+              <span id="generation-hint">En général moins d'une minute.</span>
               <span class="loading-panel__time" id="generation-time" aria-hidden="true">0 s</span>
             </p>
           </div>
@@ -312,14 +327,14 @@
       </button>
     </div>
     <ol class="dialog__steps">
-      <li><strong>Colle ton cours.</strong> Un chapitre ou une fiche, en texte (entre 200 et 15&#8239;000 caractères).</li>
-      <li><strong>Choisis tes réglages</strong> puis clique sur « Générer le quiz ». L'IA prépare les questions à partir de ton texte uniquement.</li>
-      <li><strong>Réponds aux questions.</strong> À la fin, tu vois ton score et un corrigé avec l'extrait du cours qui justifie chaque réponse.</li>
+      <li><strong>Ajoute ton cours.</strong> Un PDF (5 Mo maximum, avec du texte sélectionnable), un texte collé (200 à 60&#8239;000 caractères), ou les deux.</li>
+      <li><strong>Choisis tes réglages</strong> puis clique sur « Générer le quiz ». L'IA prépare les questions à partir de ton cours uniquement.</li>
+      <li><strong>Réponds aux questions.</strong> À la fin, tu vois ton score et un corrigé qui explique chaque réponse.</li>
     </ol>
     <h3>Bon à savoir</h3>
     <ul class="dialog__list">
       <li>L'IA peut se tromper : en cas de doute, vérifie dans ton cours ou demande à ton enseignant·e.</li>
-      <li>Ton texte est envoyé à un service d'IA externe : n'y mets pas de données personnelles.</li>
+      <li>Ton cours est envoyé à un service d'IA externe : n'y mets pas de données personnelles.</li>
       <li>Le quiz de démonstration fonctionne sans IA ni Internet.</li>
     </ul>
     <button type="button" class="btn btn--primary btn--block" id="help-done">J'ai compris</button>
