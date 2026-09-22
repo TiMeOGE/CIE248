@@ -2,9 +2,10 @@
 // Elles ne touchent pas à la page (pas de document, pas de fetch), ce qui permet
 // de les tester avec Node : voir tests/quiz-logic.test.js.
 
-// Mêmes limites que le serveur (docs/PLAN.md, section 4).
+// Mêmes limites que le serveur (backend/app/config.py).
 export const TEXT_MIN_CHARS = 200;
-export const TEXT_MAX_CHARS = 15000;
+export const TEXT_MAX_CHARS = 60000;
+export const PDF_MAX_BYTES = 5 * 1024 * 1024;
 export const CHOICES_PER_QUESTION = 4;
 
 const numberFormat = new Intl.NumberFormat('fr-CH');
@@ -37,6 +38,64 @@ export function checkCourseText(text) {
     };
   }
   return { ok: true, message: '' };
+}
+
+/**
+ * Vérifie le cours avant l'envoi : un PDF, un texte collé, ou les deux.
+ * `file` est un objet { name, size } (un File du navigateur) ou null.
+ * Avec un PDF, le texte collé est facultatif : le serveur vérifie la longueur totale.
+ * Renvoie { ok, message, field } où field vaut 'file' ou 'text' (champ à signaler).
+ */
+export function checkCourseInput(text, file) {
+  if (!file) {
+    if (text.trim() === '') {
+      return { ok: false, field: 'text', message: 'Choisis un PDF ou colle le texte de ton cours.' };
+    }
+    return { ...checkCourseText(text), field: 'text' };
+  }
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    return { ok: false, field: 'file', message: 'Le fichier doit être un PDF.' };
+  }
+  if (file.size === 0) {
+    return { ok: false, field: 'file', message: 'Ce PDF est vide. Choisis un autre fichier.' };
+  }
+  if (file.size > PDF_MAX_BYTES) {
+    return { ok: false, field: 'file', message: 'Ce PDF est trop lourd (5 Mo maximum). Garde un seul chapitre à la fois.' };
+  }
+  if (text.trim().length > TEXT_MAX_CHARS) {
+    return { ...checkCourseText(text), field: 'text' };
+  }
+  return { ok: true, field: '', message: '' };
+}
+
+/**
+ * Convertit la réponse du serveur ({ questions: [{ ..., correct_answer }] })
+ * au format de l'interface ({ title, questions: [{ ..., correctIndex, sourceQuote }] }).
+ * Le serveur ne renvoie ni titre ni extrait du cours : on les complète.
+ * Renvoie null si la réponse n'a pas la forme attendue.
+ */
+export function fromServerQuiz(data, title = '') {
+  if (!isObject(data) || !Array.isArray(data.questions)) return null;
+  const quiz = {
+    title,
+    questions: data.questions.map((question) =>
+      isObject(question)
+        ? {
+            question: question.question,
+            choices: question.choices,
+            correctIndex: question.correct_answer,
+            explanation: question.explanation,
+            sourceQuote: '',
+          }
+        : question,
+    ),
+  };
+  return isValidQuiz(quiz) ? quiz : null;
+}
+
+/** Titre du quiz tiré du nom du PDF : « cycle-de-l_eau.pdf » → « cycle de l eau ». */
+export function titleFromFileName(name) {
+  return name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /**

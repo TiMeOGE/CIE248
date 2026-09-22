@@ -54,21 +54,27 @@ relue par un autre membre avant la fusion.
 | `docs/PLAN.md` | Plan du projet et étapes à suivre |
 | `docs/DESIGN.md` | Design system (couleurs, composants) et règles de rédaction des textes |
 | `public/` | Interface (HTML, CSS, JavaScript) : écrans Créer → Quiz → Résultat |
+| `backend/` | Serveur FastAPI : génération du quiz par l'IA et service de l'interface |
 | `tests/` | Tests automatiques (`node --test`) |
 | `prototype.html` | Maquette d'origine, **à ne pas modifier**. Visible sur https://timeoge.github.io/CIE248/prototype.html |
 
-### Voir l'interface (en attendant le serveur)
+### Lancer le site (interface + backend)
+
+Le backend FastAPI sert aussi l'interface. Après l'installation décrite dans
+le [README du backend](backend/README.md) (environnement Python et
+`backend/.env` avec la clé IA), depuis la racine :
 
 ```bash
-python -m http.server 8080 --directory public
+source .venv/Scripts/activate
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Puis ouvrir http://localhost:8080. Le quiz de démonstration fonctionne ; la
-génération IA affichera « indisponible » tant que le serveur (étape 2) n'existe pas.
+Puis ouvrir http://127.0.0.1:8000. On peut importer un PDF et/ou coller le
+texte du cours. Sans clé, un bandeau l'indique et le quiz de démonstration
+reste disponible.
 
-Lancer les tests : `node --test` (Node.js 24).
-
-L'installation et le lancement complets du site seront décrits ici à l'étape 2.
+Tests : `node --test` (interface, Node.js 24) et
+`python -m unittest discover -s backend/tests -v` (backend).
 
 ## Prototype expérimental Python
 

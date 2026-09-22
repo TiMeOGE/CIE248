@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+PUBLIC_DIR = BACKEND_DIR.parent / "public"
 DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 AI_TIMEOUT_SECONDS = 120.0
 MAX_PDF_BYTES = 5 * 1024 * 1024

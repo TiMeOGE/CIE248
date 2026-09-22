@@ -4,7 +4,7 @@
 //   1. État de l'application
 //   2. Petits outils (création d'éléments, annonces pour lecteurs d'écran)
 //   3. Navigation entre les écrans
-//   4. Écran 1 : Créer (texte, réglages, génération, démo)
+//   4. Écran 1 : Créer (PDF et/ou texte, réglages, génération, démo)
 //   5. Écran 2 : Quiz
 //   6. Écran 3 : Résultat et corrigé
 //   7. Aide et démarrage
@@ -16,7 +16,7 @@ import { DEMO_COURSE, DEMO_QUIZ } from './demo-quiz.js';
 import { ApiError, fetchStatus, requestQuiz } from './api.js';
 import {
   TEXT_MAX_CHARS,
-  checkCourseText,
+  checkCourseInput,
   computeScore,
   countAnswered,
   firstUnanswered,
@@ -24,6 +24,7 @@ import {
   formatNumber,
   prepareQuiz,
   resultMessage,
+  titleFromFileName,
 } from './quiz-logic.js';
 
 const $ = (id) => document.getElementById(id);
@@ -90,6 +91,7 @@ function goHome() {
 
 /* 4. Écran 1 : Créer ------------------------------------------ */
 const courseText = $('course-text');
+const courseFile = $('course-file');
 
 function updateCounter() {
   const length = courseText.value.trim().length;
@@ -97,15 +99,38 @@ function updateCounter() {
   $('course-count').classList.toggle('is-over', length > TEXT_MAX_CHARS);
 }
 
-function showFieldError(message) {
-  $('course-error-text').textContent = message;
-  $('course-error').hidden = false;
-  courseText.setAttribute('aria-invalid', 'true');
+/** Affiche une erreur sous le champ concerné : 'file' (PDF) ou 'text' (texte collé). */
+function showFieldError(field, message) {
+  const [input, prefix] = field === 'file' ? [courseFile, 'file'] : [courseText, 'course'];
+  $(`${prefix}-error-text`).textContent = message;
+  $(`${prefix}-error`).hidden = false;
+  input.setAttribute('aria-invalid', 'true');
+  input.focus();
 }
 
 function clearFieldError() {
-  $('course-error').hidden = true;
-  courseText.removeAttribute('aria-invalid');
+  for (const [input, prefix] of [[courseText, 'course'], [courseFile, 'file']]) {
+    $(`${prefix}-error`).hidden = true;
+    input.removeAttribute('aria-invalid');
+  }
+}
+
+function selectedFile() {
+  return courseFile.files[0] ?? null;
+}
+
+function updateFileUi() {
+  const file = selectedFile();
+  $('file-clear').hidden = !file;
+  $('text-optional').hidden = !file;
+  courseFile.closest('.file-picker').classList.toggle('has-file', Boolean(file));
+}
+
+function clearFile() {
+  courseFile.value = '';
+  updateFileUi();
+  clearFieldError();
+  courseFile.focus();
 }
 
 function selectedCount() {
@@ -128,20 +153,21 @@ async function handleGenerate(event) {
   if (state.generation) return;
   hideGenerateError();
 
-  const check = checkCourseText(courseText.value);
+  const file = selectedFile();
+  const check = checkCourseInput(courseText.value, file);
   if (!check.ok) {
-    showFieldError(check.message);
-    courseText.focus();
+    showFieldError(check.field, check.message);
     return;
   }
   clearFieldError();
 
   const count = selectedCount();
   const level = $('level').value;
+  const title = file ? titleFromFileName(file.name) : '';
   startGenerationUi(count);
   try {
     const { quiz, warnings } = await requestQuiz(
-      { text: courseText.value.trim(), count, level },
+      { text: courseText.value.trim(), file, count, level, title },
       state.generation.controller.signal,
     );
     stopGenerationUi();
@@ -166,7 +192,7 @@ function startGenerationUi(count) {
   $('generate-spinner').hidden = false;
   $('generate-label').textContent = 'Génération en cours…';
   $('generation-text').textContent = `L'IA lit ton cours et prépare ${count} questions…`;
-  $('generation-hint').textContent = 'En général entre 10 et 30 secondes.';
+  $('generation-hint').textContent = "En général moins d'une minute.";
   $('generation-time').textContent = '0 s';
   $('generation-panel').hidden = false;
   state.generation.timer = setInterval(updateGenerationTime, 1000);
@@ -455,6 +481,11 @@ function init() {
     updateCounter();
     clearFieldError();
   });
+  courseFile.addEventListener('change', () => {
+    updateFileUi();
+    clearFieldError();
+  });
+  $('file-clear').addEventListener('click', clearFile);
   $('example-btn').addEventListener('click', fillExample);
   $('demo-btn').addEventListener('click', startDemo);
   $('error-demo-btn').addEventListener('click', startDemo);
@@ -482,6 +513,7 @@ function init() {
 
   setupHelpDialog();
   updateCounter();
+  updateFileUi(); // le navigateur peut garder le PDF choisi après un rechargement
   checkServer();
 }
 

@@ -23,7 +23,8 @@ def validate_upload(filename: str | None, content_type: str | None, size: int) -
         raise ApiError(422, "EMPTY_PDF", "Le fichier PDF est vide.")
 
 
-def extract_text(data: bytes) -> str:
+def extract_text(data: bytes, min_characters: int = MIN_TEXT_CHARACTERS) -> str:
+    """min_characters=0 quand un texte colle complete le PDF : le total est verifie ensuite."""
     if len(data) > MAX_PDF_BYTES:
         raise ApiError(413, "PDF_TOO_LARGE", "Le PDF depasse la limite de 5 Mio.")
     if not data:
@@ -52,6 +53,6 @@ def extract_text(data: bytes) -> str:
     text = "\n\n".join(pages)
     if not text:
         raise ApiError(422, "NO_TEXT", "Aucun texte extractible. Les scans necessitent un OCR.")
-    if len(text) < MIN_TEXT_CHARACTERS:
+    if len(text) < min_characters:
         raise ApiError(422, "INSUFFICIENT_TEXT", "Le cours doit contenir au moins 200 caracteres de texte.")
     return text
