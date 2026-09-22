@@ -40,11 +40,21 @@ Navigateur ◀──quiz ou erreur claire──┘
 
 ## 4. Contrats
 
+**État du serveur** `GET /api/status` : utilisé par l'interface pour afficher un bandeau si l'IA est indisponible.
+
+```json
+{ "status": "ok", "aiConfigured": true }
+```
+
 **Requête** `POST /api/generate`
 
 ```json
 { "text": "…cours…", "count": 5, "level": "primaire" }
 ```
+
+- `text` : 200 à 15 000 caractères, comptés **sans les espaces du début et de la fin**
+- `count` : `5` ou `10`
+- `level` : `"primaire"` ou `"cycle"` (cycle d'orientation)
 
 **Réponse OK (200)**
 
@@ -88,7 +98,7 @@ Navigateur ◀──quiz ou erreur claire──┘
 ```
 prototype.html            maquette d'origine (NE PAS MODIFIER)
 README.md  AGENTS.md  CLAUDE.md  .gitignore  .gitattributes  .env.example  package.json
-docs/      PLAN.md  ARCHITECTURE.md  DECISIONS.md  DEPLOIEMENT-PI.md  DEMO.md
+docs/      PLAN.md  DESIGN.md  ARCHITECTURE.md  DECISIONS.md  DEPLOIEMENT-PI.md  DEMO.md
 public/    index.html  css/styles.css  js/{app.js, api.js, quiz-logic.js, demo-quiz.js}
 server/    index.js  app.js  config.js  errors.js  rate-limit.js
            ai/{generate-quiz.js, ai-client.js, prompt.js}
@@ -119,7 +129,7 @@ GitHub : faire `git merge main` dedans avant de commencer (voir le README).
 - [x] Étape 0 : ce plan (PR #1, fusionnée)
 - [ ] Étape 1 · `chore/mise-en-place` : `.gitignore`, `.gitattributes`, `.env.example`, README v1, `AGENTS.md`, `CLAUDE.md`
 - [ ] Étape 2 · `feat/squelette-serveur` : squelette Express : `/api/status`, `/api/generate` en mode factice (`AI_PROVIDER=mock`), `npm run dev`, `npm test`
-- [ ] Étape 3 · `feat/interface` : interface dans `public/`, inspirée de `prototype.html` (accueil, quiz, résultat, mode démo)
+- [x] Étape 3 · `feat/interface` : interface dans `public/`, inspirée de `prototype.html` (accueil, quiz, résultat, mode démo). Design system et règles de rédaction : `docs/DESIGN.md`
 - [ ] Étape 4 · `feat/test-openrouter` : premier appel réel à OpenRouter (script de test) pour choisir le modèle ⚠️ support du schéma JSON à vérifier
 - **Jalon** : chacun lance le site en local et `npm test` passe
 

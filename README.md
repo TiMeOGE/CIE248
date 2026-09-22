@@ -52,9 +52,23 @@ relue par un autre membre avant la fusion.
 | Fichier | Rôle |
 |---|---|
 | `docs/PLAN.md` | Plan du projet et étapes à suivre |
+| `docs/DESIGN.md` | Design system (couleurs, composants) et règles de rédaction des textes |
+| `public/` | Interface (HTML, CSS, JavaScript) : écrans Créer → Quiz → Résultat |
+| `tests/` | Tests automatiques (`node --test`) |
 | `prototype.html` | Maquette d'origine, **à ne pas modifier**. Visible sur https://timeoge.github.io/CIE248/prototype.html |
 
-L'installation et le lancement du site seront décrits ici à l'étape 2.
+### Voir l'interface (en attendant le serveur)
+
+```bash
+python -m http.server 8080 --directory public
+```
+
+Puis ouvrir http://localhost:8080. Le quiz de démonstration fonctionne ; la
+génération IA affichera « indisponible » tant que le serveur (étape 2) n'existe pas.
+
+Lancer les tests : `node --test` (Node.js 24).
+
+L'installation et le lancement complets du site seront décrits ici à l'étape 2.
 
 ## Sécurité
 
