@@ -70,6 +70,15 @@ Lancer les tests : `node --test` (Node.js 24).
 
 L'installation et le lancement complets du site seront décrits ici à l'étape 2.
 
+## Prototype expérimental Python
+
+L'expérience PDF vers quiz OpenAI fonctionne dans le terminal, indépendamment
+du projet web. Son [README](prototype-experimental/README.md) explique
+l'installation sous Windows avec Git Bash, la configuration et les tests.
+
+Cette expérience utilise `feature/experimental-ai-quiz`, avec une Pull Request
+vers `develop` pour intégration avant une éventuelle validation vers `main`.
+
 ## Sécurité
 
 Ne jamais mettre de clé API dans le code, dans Git, dans un chat IA ou sur
