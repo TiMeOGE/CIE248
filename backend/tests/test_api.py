@@ -13,7 +13,7 @@ from backend.tests.helpers import COURSE, make_pdf, quiz_data
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
-        self.environment = patch.dict(os.environ, {"OPENAI_API_KEY": "", "CORS_ORIGINS": "http://localhost:5500"})
+        self.environment = patch.dict(os.environ, {"AI_API_KEY": "", "OPENAI_API_KEY": "", "AI_BASE_URL": "", "AI_MODEL": "", "CORS_ORIGINS": "http://localhost:5500"})
         self.environment.start()
         self.addCleanup(self.environment.stop)
         with patch.object(main, "load_dotenv"):
@@ -96,9 +96,9 @@ class ApiTests(unittest.TestCase):
                 response = self.post_pdf(question_count=count, level="10e")
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertEqual(response.json(), quiz_data(count))
-                text, key, actual_count, level = generate.call_args.args
+                text, actual_count, level = generate.call_args.args
                 self.assertIn(COURSE, text)
-                self.assertEqual((key, actual_count, level), ("", count, "10e"))
+                self.assertEqual((actual_count, level), (count, "10e"))
 
     def test_missing_api_key(self):
         response = self.post_pdf()

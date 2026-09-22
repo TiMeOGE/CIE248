@@ -1,7 +1,7 @@
 # Backend Quiz IA : FastAPI
 
 Ce MVP du Module 248 reçoit un PDF pédagogique et retourne un quiz JSON.
-Il reprend l'extraction `pypdf`, le prompt, l'appel OpenAI Responses et les
+Il reprend l'extraction `pypdf`, le prompt et les
 modèles Pydantic validés dans `prototype-experimental/main.py`, en les adaptant
 aux uploads HTTP et au nombre variable de questions. Le prototype expérimental
 reste intact comme trace de l'expérience.
@@ -9,7 +9,8 @@ reste intact comme trace de l'expérience.
 ## Installation dans VS Code, Windows et Git Bash
 
 Prérequis : Python 3.10 ou plus récent. Pour générer réellement un quiz,
-il faut une clé API OpenAI et l'accès au modèle `gpt-4.1-mini`.
+il faut une clé API d'un fournisseur compatible OpenAI : **NVIDIA**,
+**OpenRouter** ou **OpenAI**. Voir « Choisir le fournisseur IA » ci-dessous.
 Les tests, `/health` et Swagger fonctionnent sans clé.
 
 Depuis la racine du dépôt :
@@ -24,8 +25,27 @@ cp -n backend/.env.example backend/.env
 ```
 
 Si `python` n'est pas reconnu avant l'activation, utiliser `py -3 -m venv .venv`.
-Dans `backend/.env`, renseigner `OPENAI_API_KEY` avec la clé du compte API.
+Dans `backend/.env`, renseigner `AI_API_KEY` avec la clé du fournisseur choisi.
 Ne jamais la mettre dans le frontend, dans Git ou dans le chat.
+
+### Choisir le fournisseur IA
+
+Les trois fournisseurs parlent le même format que l'API OpenAI : le backend
+utilise la bibliothèque `openai` et change seulement d'adresse. Dans
+`backend/.env`, garder **un seul** bloc actif (voir `backend/.env.example`) :
+
+| Fournisseur | `AI_BASE_URL` | `AI_MODEL` (exemple) | Où créer la clé |
+|---|---|---|---|
+| NVIDIA | `https://integrate.api.nvidia.com/v1` | `z-ai/glm-5.3` | build.nvidia.com, page du modèle, **Generate API Key** |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-4.1-mini` | openrouter.ai/keys |
+| OpenAI | *(vide)* | `gpt-4.1-mini` (par défaut) | platform.openai.com |
+
+Le nom exact du modèle est celui affiché par le fournisseur (champ `model=`
+dans son exemple de code). L'ancienne variable `OPENAI_API_KEY` reste lue si
+`AI_API_KEY` est vide. Les modèles gratuits (NVIDIA, modèles `:free`
+d'OpenRouter) ont des limites de débit et peuvent être lents : le délai
+maximum est de 120 secondes. Le texte du cours est envoyé au fournisseur
+choisi : ne pas y mettre de données personnelles.
 
 Le fichier `.env` est ignoré par le `.gitignore` existant. Les variables déjà
 définies dans le terminal sont prioritaires. Le backend charge uniquement
@@ -58,7 +78,7 @@ le serveur. Ce lancement écoute seulement sur la machine locale.
 5. Cliquer sur **Execute** et lire le statut HTTP et le JSON retourné.
 
 Sans clé, un PDF valide donnera `503 AI_NOT_CONFIGURED`. Avec une vraie clé,
-ce test envoie le texte extrait à OpenAI et consomme le quota API du compte.
+ce test envoie le texte extrait au fournisseur IA et consomme le quota du compte.
 Tester d'abord avec un cours autorisé, sans données personnelles d'élèves.
 
 Le PDF doit contenir du texte sélectionnable. Pour la démonstration, prévoir
@@ -125,7 +145,7 @@ Toutes les erreurs applicatives utilisent le même format :
 | 422 | contenu insuffisant selon le LLM (`INSUFFICIENT_CONTENT`) ou refus (`AI_REFUSED`) |
 | 502 | fournisseur indisponible ou quiz invalide/incomplet (`AI_INVALID_RESPONSE`) |
 | 503 | clé absente/refusée (`AI_NOT_CONFIGURED`) ou quota/limite fournisseur atteint |
-| 504 | délai réseau OpenAI dépassé (`AI_TIMEOUT`) |
+| 504 | délai du fournisseur IA dépassé (`AI_TIMEOUT`) |
 | 500 | erreur inattendue, avec message générique sans trace Python |
 
 Les erreurs brutes du fournisseur et les valeurs invalides soumises ne sont
@@ -136,11 +156,11 @@ pas renvoyées au client.
 ```text
 backend/app/main.py                  routes, CORS et réponses d'erreur
 backend/app/models.py                structure des questions et du quiz
-backend/app/config.py                limites et modèle OpenAI
+backend/app/config.py                limites et fournisseur IA (.env)
 backend/app/errors.py                erreurs métier avec code HTTP
 backend/app/middleware.py            limite du corps HTTP avant lecture multipart
 backend/app/services/pdf_service.py  validation PDF et extraction du texte
-backend/app/services/quiz_service.py  prompt, OpenAI et validation du quiz
+backend/app/services/quiz_service.py  prompt, appel IA et validation du quiz
 backend/tests/                      tests sans crédit API
 ```
 
@@ -150,14 +170,16 @@ backend/tests/                      tests sans crédit API
    corps HTTP, même si l'envoi n'annonce pas sa taille.
 2. Le service PDF vérifie le nom, le type, la taille et la signature `%PDF-`.
    `PdfReader` lit les pages et `extract_text()` récupère le texte.
-3. Le service quiz donne à OpenAI le texte du cours et des consignes : niveau,
+3. Le service quiz donne au modèle IA le texte du cours et des consignes : niveau,
    nombre de questions, 4 choix et aucune information externe. Une liste vide
    est autorisée pour signaler que le contenu est insuffisant.
-4. `responses.parse` utilise le schéma Pydantic pour analyser et valider la
-   réponse. Le service contrôle aussi le nombre de questions et les doublons.
+4. L'appel `chat.completions` (commun à NVIDIA, OpenRouter et OpenAI) renvoie
+   du texte. Le service en extrait l'objet JSON (en ignorant un éventuel
+   raisonnement `<think>` ou des balises Markdown), puis le schéma Pydantic le
+   valide. Le service contrôle aussi le nombre de questions et les doublons.
 5. FastAPI sérialise le modèle `Quiz` en JSON pour le frontend.
 
-Les opérations PDF et OpenAI sont synchrones, dans une route `def` exécutée
+Les opérations PDF et IA sont synchrones, dans une route `def` exécutée
 par FastAPI dans son pool de threads. Les routes de santé restent indépendantes.
 
 ## Limites du prototype
@@ -177,8 +199,8 @@ exactitude n'est pas vérifiée automatiquement. Un JSON valide ne garantit pas
 des réponses justes. Une relecture humaine reste nécessaire pour évaluer
 l'incertitude pédagogique de ce MVP.
 
-Le délai réseau OpenAI est de 45 secondes, sans nouvelle tentative automatique.
-L'appel utilise `store=False`. Le backend n'enregistre ni historique ni PDF
+Le délai du fournisseur IA est de 120 secondes, sans nouvelle tentative
+automatique. Le backend n'enregistre ni historique ni PDF
 dans le projet ; les éventuels fichiers temporaires multipart sont fermés.
 Il n'y a ni comptes, ni authentification, ni base de données, ni limite par
 utilisateur. Ce MVP est prévu pour les essais locaux.
@@ -212,7 +234,7 @@ git check-ignore backend/.env
 ```
 
 Les tests créent des PDF en mémoire, vérifient les endpoints, les limites,
-CORS, OpenAPI et les modèles, et simulent les réponses HTTP OpenAI avec le vrai
+CORS, OpenAPI et les modèles, et simulent les réponses HTTP du fournisseur (NVIDIA, OpenRouter, OpenAI) avec le vrai
 SDK. Ils ne consomment aucun crédit API. La qualité des questions nécessite
 encore un essai avec une vraie clé et plusieurs cours réels.
 
