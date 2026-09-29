@@ -6,7 +6,10 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 PUBLIC_DIR = BACKEND_DIR.parent / "public"
 DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
-AI_TIMEOUT_SECONDS = 120.0
+# Delai de l'IA selon le travail demande (voir ai_timeout_seconds) : 120 s pour 5 questions faciles.
+AI_TIMEOUT_BASE_SECONDS = 60
+AI_TIMEOUT_PER_QUESTION_SECONDS = 12
+AI_TIMEOUT_DIFFICULTY_FACTORS = {"facile": 1.0, "intermediaire": 1.25, "difficile": 1.5}
 MAX_PDF_BYTES = 5 * 1024 * 1024
 MAX_REQUEST_BYTES = MAX_PDF_BYTES + 64 * 1024  # Marge pour les champs multipart.
 MAX_PDF_PAGES = 50
@@ -36,3 +39,12 @@ def ai_settings() -> tuple[str, str | None, str]:
     # Sans adresse, le SDK vise OpenAI : on garde alors l'ancien modele par defaut.
     model = os.getenv("AI_MODEL", "").strip() or ("" if base_url else DEFAULT_OPENAI_MODEL)
     return api_key, base_url, model
+
+
+def ai_timeout_seconds(question_count: int, difficulty: str) -> float:
+    """Plus de questions et une difficulte plus haute demandent plus de reflexion a l'IA.
+
+    Meme calcul dans generateTimeoutMs (public/js/api.js) : garder les deux identiques.
+    """
+    seconds = AI_TIMEOUT_BASE_SECONDS + AI_TIMEOUT_PER_QUESTION_SECONDS * question_count
+    return seconds * AI_TIMEOUT_DIFFICULTY_FACTORS[difficulty]

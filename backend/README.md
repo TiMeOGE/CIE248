@@ -55,7 +55,8 @@ lent) ; `z-ai/glm-5.3` et `z-ai/glm-5.3-flash` n'ont renvoyé aucune réponse en
 150 s (file d'attente saturée), d'où l'erreur `AI_TIMEOUT`. L'ancienne variable `OPENAI_API_KEY` reste lue si
 `AI_API_KEY` est vide. Les modèles gratuits (NVIDIA, modèles `:free`
 d'OpenRouter) ont des limites de débit et peuvent être lents : le délai
-maximum est de 120 secondes. Le texte du cours est envoyé au fournisseur
+accordé à l'IA va de 120 à 270 secondes selon le nombre de questions et la
+difficulté (voir « Délai de l'IA »). Le texte du cours est envoyé au fournisseur
 choisi : ne pas y mettre de données personnelles.
 
 Le fichier `.env` est ignoré par le `.gitignore` existant. Les variables déjà
@@ -121,6 +122,25 @@ La difficulté change la consigne donnée à l'IA (`DIFFICULTY_GUIDES` dans
 - `facile` : faits écrits tels quels dans le cours, distracteurs clairement faux ;
 - `intermediaire` : compréhension, reformuler ou relier deux informations ;
 - `difficile` : raisonner ou appliquer une notion à un cas, distracteurs proches.
+
+### Délai de l'IA
+
+Plus il y a de questions et plus la difficulté est haute, plus l'IA réfléchit
+longtemps. Le délai accordé au fournisseur (`ai_timeout_seconds()` dans
+`backend/app/config.py`) dépend donc des réglages :
+
+délai = (60 s + 12 s × nombre de questions) × coefficient de difficulté
+(facile 1 ; intermédiaire 1,25 ; difficile 1,5)
+
+| Délai de l'IA | Facile | Intermédiaire | Difficile |
+|---|---|---|---|
+| 5 questions | 120 s | 150 s | 180 s |
+| 10 questions | 180 s | 225 s | 270 s |
+
+Au-delà, le serveur répond `504 AI_TIMEOUT`. Le navigateur fait le même calcul
+(`generateTimeoutMs()` dans `public/js/api.js`) et y ajoute 60 s d'OCR et 10 s
+de marge. Pour changer ces valeurs, modifier les deux fichiers : les tests
+`backend/tests/test_services.py` et `tests/api.test.js` vérifient le même tableau.
 
 Exemple dans Git Bash, depuis la racine :
 
@@ -266,8 +286,9 @@ Ni trace Python ni message de Tesseract ne sont renvoyés au navigateur.
 - 200 DPI au lieu de 300 : plus de deux fois moins de pixels (une page A4 fait
   environ 3,9 millions de pixels, soit environ 4 Mo en niveaux de gris) pour
   une lecture correcte des cours imprimés en taille normale.
-- L'interface garde l'écran « Génération en cours » et attend jusqu'à 190 s
-  (60 s d'OCR + 120 s d'IA + marge).
+- L'interface garde l'écran « Génération en cours » et attend 60 s d'OCR, plus
+  le délai de l'IA pour les réglages choisis, plus 10 s de marge : de 190 s
+  (5 questions, Facile) à 340 s (10 questions, Difficile).
 
 ### Sécurité
 
@@ -317,7 +338,7 @@ des réponses justes. Une relecture humaine reste nécessaire pour évaluer
 l'incertitude pédagogique de ce MVP.
 
 L'OCR dispose d'au plus 60 secondes par document, puis le fournisseur IA de
-120 secondes, sans nouvelle tentative automatique. Le backend n'enregistre ni
+120 à 270 secondes selon les réglages, sans nouvelle tentative automatique. Le backend n'enregistre ni
 historique ni PDF dans le projet ; les éventuels fichiers temporaires multipart
 sont fermés, et ceux de Tesseract supprimés après chaque page.
 Il n'y a ni comptes, ni authentification, ni base de données, ni limite par

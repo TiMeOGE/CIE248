@@ -10,7 +10,7 @@ from openai import APITimeoutError, AuthenticationError, OpenAI, OpenAIError, Ra
 from pydantic import ValidationError
 
 from ..config import (
-    AI_TIMEOUT_SECONDS, MAX_QUESTIONS, MAX_TEXT_CHARACTERS, MIN_QUESTIONS, MIN_TEXT_CHARACTERS, ai_settings,
+    MAX_QUESTIONS, MAX_TEXT_CHARACTERS, MIN_QUESTIONS, MIN_TEXT_CHARACTERS, ai_settings, ai_timeout_seconds,
 )
 from ..errors import ApiError
 from ..models import Difficulty, LLMQuiz, Quiz
@@ -75,8 +75,9 @@ def generate_quiz(text: str, question_count: int = 5, difficulty: Difficulty = "
         "renvoie une liste questions vide plutot que d'inventer des informations. "
         + JSON_FORMAT
     )
+    timeout = ai_timeout_seconds(question_count, difficulty)
     try:
-        with OpenAI(api_key=api_key, base_url=base_url, timeout=AI_TIMEOUT_SECONDS, max_retries=0) as client:
+        with OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0) as client:
             response = client.chat.completions.create(
                 model=model,
                 messages=[
