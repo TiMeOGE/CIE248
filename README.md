@@ -32,6 +32,10 @@ Copy-Item backend\.env.example backend\.env
 
 Si `python` n'est pas reconnu, remplacer `python` par `py -3` sur la première ligne.
 
+Les PDF scannés sont lus par OCR avec le programme **Tesseract**. Il est déjà
+inclus dans l'image Docker (voir [backend/README.md](backend/README.md#docker-raspberry-pi)).
+Sur un PC, il est facultatif : sans lui, tout fonctionne sauf les PDF scannés.
+
 ### 2. Mettre la clé API
 
 La clé va dans le fichier **`backend/.env`**, dans le dossier `backend` du projet.
@@ -97,6 +101,7 @@ Liens utiles :
 | Bandeau « La génération IA n'est pas encore configurée » | Pas de clé dans `backend/.env` (étape 2), ou serveur pas relancé après l'avoir ajoutée. |
 | « L'IA met trop de temps à répondre » | Modèle gratuit saturé. Dans `backend/.env`, essayer `AI_MODEL=deepseek-ai/deepseek-v4.1-flash`, puis relancer. |
 | « La génération IA n'est pas configurée sur le serveur » après un clic | Clé refusée par le fournisseur : vérifier qu'elle est complète, ou en créer une nouvelle. |
+| « La lecture des pages scannées n'a pas fonctionné » | Tesseract n'est pas installé (normal sur un PC) : coller le texte du cours, ou lancer le site avec Docker. |
 
 Sans clé ou sans Internet, le bouton **Jouer au quiz de démonstration** fonctionne toujours.
 

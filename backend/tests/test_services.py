@@ -44,9 +44,9 @@ class ServiceTests(unittest.TestCase):
         return patch.object(quiz_service, "OpenAI", side_effect=factory)
 
     def test_pdf_extraction_and_text_limit(self):
-        self.assertEqual(pdf_service.extract_text(make_pdf()), COURSE)
+        self.assertEqual(pdf_service.extract_pdf_text(make_pdf()), COURSE)
         with self.assertRaises(ApiError) as error:
-            pdf_service.extract_text(make_pdf(text="a" * 60_001))
+            pdf_service.extract_pdf_text(make_pdf(text="a" * 60_001))
         self.assertEqual(error.exception.code, "TEXT_TOO_LONG")
 
     def test_models_reject_invalid_questions(self):

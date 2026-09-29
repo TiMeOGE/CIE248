@@ -4,8 +4,8 @@
 
 import { fromServerQuiz } from './quiz-logic.js';
 
-// Le serveur coupe lui-même l'appel à l'IA après 120 s ; celui-ci est une sécurité de plus.
-const GENERATE_TIMEOUT_MS = 130_000;
+// Le serveur limite l'OCR des pages scannées à 60 s, puis l'appel à l'IA à 120 s ; celui-ci est une sécurité de plus.
+const GENERATE_TIMEOUT_MS = 190_000;
 const STATUS_TIMEOUT_MS = 5_000;
 
 /** Erreur avec un code (ex. AI_TIMEOUT) et un message prêt à afficher. */
@@ -91,7 +91,8 @@ const ERROR_MESSAGES = {
   INVALID_PDF: 'Ce PDF est illisible ou endommagé. Essaie un autre fichier, ou colle le texte.',
   ENCRYPTED_PDF: 'Ce PDF est protégé par un mot de passe. Utilise une version sans mot de passe, ou colle le texte.',
   TOO_MANY_PAGES: 'Ce PDF a trop de pages (50 maximum). Garde un seul chapitre à la fois.',
-  NO_TEXT: "Aucun texte n'a pu être lu dans ce PDF (c'est peut-être un scan). Colle plutôt le texte du cours.",
+  NO_TEXT: "Impossible de lire assez de texte dans ce PDF (page vide ou scan trop flou). Colle plutôt le texte du cours.",
+  OCR_FAILED: "La lecture des pages scannées n'a pas fonctionné. Réessaie dans un instant, ou colle le texte du cours.",
   INSUFFICIENT_TEXT: 'Ton cours est trop court (au moins 200 caractères) pour créer de bonnes questions.',
   TEXT_TOO_LONG: 'Ton cours est trop long (60 000 caractères maximum). Garde un seul chapitre à la fois.',
   INSUFFICIENT_CONTENT: "Ton cours ne contient pas assez d'informations pour ce nombre de questions. Essaie avec 5 questions ou un cours plus complet.",

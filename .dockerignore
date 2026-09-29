@@ -1,0 +1,10 @@
+# Contexte envoye a "docker build" : jamais de secret, rien d'inutile.
+**/.env*
+.git
+.venv
+**/__pycache__
+**/*.py[cod]
+docs
+tests
+prototype-experimental
+prototype.html

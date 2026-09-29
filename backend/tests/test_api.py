@@ -8,6 +8,7 @@ from backend.app import main
 from backend.app.config import MAX_PDF_BYTES, MAX_REQUEST_BYTES
 from backend.app.errors import ApiError
 from backend.app.models import Quiz
+from backend.app.services import ocr_service
 from backend.tests.helpers import COURSE, make_pdf, quiz_data
 
 
@@ -16,6 +17,10 @@ class ApiTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {"AI_API_KEY": "", "OPENAI_API_KEY": "", "AI_BASE_URL": "", "AI_MODEL": "", "CORS_ORIGINS": "http://localhost:5500"})
         self.environment.start()
         self.addCleanup(self.environment.stop)
+        # Pages sans texte : l'OCR simule ne lit rien, avec ou sans Tesseract installe (voir test_ocr.py).
+        ocr = patch.object(ocr_service.pytesseract, "image_to_string", return_value="")
+        ocr.start()
+        self.addCleanup(ocr.stop)
         with patch.object(main, "load_dotenv"):
             self.client = TestClient(main.create_app(), raise_server_exceptions=False)
         self.addCleanup(self.client.close)
