@@ -20,6 +20,7 @@ import {
   resultMessage,
   shuffleChoices,
   titleFromFileName,
+  wrongQuestions,
 } from '../public/js/quiz-logic.js';
 import { DEMO_COURSE, DEMO_QUIZ } from '../public/js/demo-quiz.js';
 
@@ -70,6 +71,19 @@ test('computeScore compte les bonnes réponses ; une absence de réponse compte 
   assert.deepEqual(computeScore(questions, [0, 2, 1, null]), { correct: 2, total: 4, percent: 50 });
   assert.deepEqual(computeScore(questions, [0, 2, 3, 1]), { correct: 4, total: 4, percent: 100 });
   assert.deepEqual(computeScore(questions, [null, null, null, null]), { correct: 0, total: 4, percent: 0 });
+});
+
+test('wrongQuestions garde les réponses fausses ou absentes, dans l’ordre du quiz', () => {
+  const questions = [0, 2, 3, 1].map((correctIndex, i) => ({ ...sampleQuestion, question: `Q${i + 1}`, correctIndex }));
+  const wrong = wrongQuestions(questions, [0, 1, null, 1]); // juste, fausse, sans réponse, juste
+  assert.deepEqual(wrong.map((question) => question.question), ['Q2', 'Q3']);
+  assert.deepEqual(wrongQuestions(questions, [0, 2, 3, 1]), []);
+
+  // La partie « questions ratées » remélange les choix sans perdre les bonnes réponses.
+  const retry = prepareQuiz({ title: 'Révision', questions: wrong }, fixedRandom([0.9, 0.1, 0.6]));
+  retry.questions.forEach((question, i) => {
+    assert.equal(question.choices[question.correctIndex], wrong[i].choices[wrong[i].correctIndex]);
+  });
 });
 
 test('computeScore arrondit le pourcentage et gère un quiz vide', () => {
