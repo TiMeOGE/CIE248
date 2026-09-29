@@ -1,5 +1,6 @@
 """Routes HTTP et interface web ; les traitements synchrones tournent dans le pool FastAPI."""
 
+import logging
 import os
 from typing import Annotated
 
@@ -18,8 +19,12 @@ from .config import (
 from .errors import ApiError
 from .middleware import RequestSizeLimit
 from .models import Difficulty, ErrorResponse, Quiz
-from .services.pdf_service import extract_text, validate_upload
+from .services.pdf_service import extract_pdf_text, validate_upload
 from .services.quiz_service import generate_quiz
+
+# Journal du serveur au format d'Uvicorn : pages, OCR, durees (jamais le cours ni la cle).
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)  # pas de ligne pour chaque appel au fournisseur IA
 
 
 def error_response(status: int, code: str, message: str) -> JSONResponse:
@@ -74,7 +79,7 @@ def create_app() -> FastAPI:
         responses={status: {"model": ErrorResponse} for status in (400, 413, 415, 422, 500, 502, 503, 504)},
     )
     def generate(
-        file: Annotated[UploadFile | None, File(description="PDF contenant du texte, maximum 5 Mio.")] = None,
+        file: Annotated[UploadFile | None, File(description="PDF (texte ou scanne), maximum 5 Mio.")] = None,
         text: Annotated[str, Form(description="Texte du cours colle, seul ou en complement du PDF.")] = "",
         question_count: Annotated[int, Form(ge=MIN_QUESTIONS, le=MAX_QUESTIONS)] = 5,
         difficulty: Annotated[Difficulty, Form()] = "intermediaire",
@@ -88,7 +93,7 @@ def create_app() -> FastAPI:
             finally:
                 file.file.close()
             # Avec un texte colle, le minimum de caracteres porte sur l'ensemble.
-            parts.append(extract_text(data, min_characters=0 if pasted else MIN_TEXT_CHARACTERS))
+            parts.append(extract_pdf_text(data, min_characters=0 if pasted else MIN_TEXT_CHARACTERS))
         if pasted:
             parts.append(pasted)
         if not parts:

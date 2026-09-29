@@ -53,7 +53,7 @@ Le contrat détaillé (codes d'erreur compris) est dans
 
 **Requête** `POST /api/quiz/generate`, formulaire `multipart/form-data` :
 
-- `file` : PDF avec du texte sélectionnable, 5 Mio maximum (facultatif si `text` est fourni)
+- `file` : PDF, 5 Mio maximum, texte ou scanné (OCR local), facultatif si `text` est fourni
 - `text` : texte collé (facultatif si `file` est fourni) ; avec les deux, le texte est ajouté après celui du PDF
 - le cours complet doit faire entre 200 et 60 000 caractères
 - `question_count` : 1 à 10 (l'interface propose 5 ou 10)
@@ -109,8 +109,9 @@ tests/     fixtures/  *.test.js
 - **SHOULD** : difficulté · import `.txt` · import PDF texte (dans le navigateur) ·
   vérification que `sourceQuote` existe dans le cours · 1 relance automatique
   si la réponse IA est invalide · CI GitHub Actions
-- **NICE** : Vrai/Faux · historique local · import `.docx`
-- **HORS PROTOTYPE** : comptes, base de données, classes, OCR,
+- **NICE** : Vrai/Faux · historique local · import `.docx` · OCR des PDF scannés
+  (fait : Tesseract côté serveur, voir `backend/README.md`)
+- **HORS PROTOTYPE** : comptes, base de données, classes,
   questions ouvertes corrigées par IA
 
 ## 7. Étapes

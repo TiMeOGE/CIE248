@@ -14,6 +14,15 @@ MIN_TEXT_CHARACTERS = 200
 MAX_TEXT_CHARACTERS = 60_000
 MIN_QUESTIONS = 1
 MAX_QUESTIONS = 10
+
+# OCR des pages scannees (services/ocr_service.py), regle pour un Raspberry Pi.
+# Une page dont pypdf lit moins de lettres/chiffres que ce seuil passe a l'OCR.
+OCR_MIN_PAGE_CHARACTERS = 50
+OCR_DPI = 200  # 300 est un peu plus precis mais environ deux fois plus lent
+OCR_MAX_PIXELS = 8_000_000  # plafond d'une image (A3 a 200 DPI) contre les pages demesurees
+OCR_LANGUAGES = "fra+eng"  # paquets tesseract-ocr-fra et tesseract-ocr-eng
+OCR_TIMEOUT_SECONDS = 60  # duree totale d'OCR par document, avant l'appel a l'IA
+OCR_MAX_PARALLEL_PAGES = 1  # processus Tesseract simultanes sur tout le serveur
 DEFAULT_ORIGINS = (
     "http://localhost:5500,http://127.0.0.1:5500,"
     "http://localhost:5173,http://127.0.0.1:5173"

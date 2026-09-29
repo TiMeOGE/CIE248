@@ -15,6 +15,11 @@ il faut une clé API d'un fournisseur compatible OpenAI : **NVIDIA**,
 **OpenRouter** ou **OpenAI**. Voir « Choisir le fournisseur IA » ci-dessous.
 Les tests, `/health` et Swagger fonctionnent sans clé.
 
+La lecture des PDF scannés (OCR) demande en plus le programme **Tesseract**.
+Il est installé dans l'image Docker (voir « Docker »). Sur un PC, il est
+facultatif : sans lui, les PDF avec du texte, le texte collé et tous les tests
+fonctionnent ; seuls les PDF scannés sont refusés (`OCR_FAILED`).
+
 Depuis la racine du dépôt :
 
 ```bash
@@ -88,7 +93,8 @@ Sans clé, un PDF valide donnera `503 AI_NOT_CONFIGURED`. Avec une vraie clé,
 ce test envoie le texte extrait au fournisseur IA et consomme le quota du compte.
 Tester d'abord avec un cours autorisé, sans données personnelles d'élèves.
 
-Le PDF doit contenir du texte sélectionnable. Pour la démonstration, prévoir
+Un PDF scanné est lu par OCR si Tesseract est installé (voir « Extraction du
+texte et OCR »). Pour la démonstration, prévoir
 plusieurs faits distincts afin de permettre le nombre de questions demandé.
 
 ## Contrat HTTP
@@ -163,10 +169,10 @@ Toutes les erreurs applicatives utilisent le même format :
 | 400 | ni PDF ni texte (`CONTENT_REQUIRED`), fichier sans nom (`FILE_REQUIRED`), formulaire HTTP mal formé |
 | 413 | PDF > 5 Mio, corps HTTP trop gros, > 50 pages ou > 60 000 caractères |
 | 415 | extension, type MIME ou signature non PDF (`INVALID_FILE_TYPE`) |
-| 422 | fichier vide, PDF endommagé/protégé, aucun texte, texte trop court, nombre ou difficulté invalide (`INVALID_DIFFICULTY`) |
+| 422 | fichier vide, PDF endommagé/protégé, aucun texte même après OCR (`NO_TEXT`), texte trop court, nombre ou difficulté invalide (`INVALID_DIFFICULTY`) |
 | 422 | contenu insuffisant selon le LLM (`INSUFFICIENT_CONTENT`) ou refus (`AI_REFUSED`) |
 | 502 | fournisseur indisponible ou quiz invalide/incomplet (`AI_INVALID_RESPONSE`) |
-| 503 | clé absente/refusée (`AI_NOT_CONFIGURED`) ou quota/limite fournisseur atteint |
+| 503 | clé absente/refusée (`AI_NOT_CONFIGURED`), quota/limite fournisseur atteint, OCR des pages scannées en échec (`OCR_FAILED`) |
 | 504 | délai du fournisseur IA dépassé (`AI_TIMEOUT`) |
 | 500 | erreur inattendue, avec message générique sans trace Python |
 
@@ -178,20 +184,22 @@ pas renvoyées au client.
 ```text
 backend/app/main.py                  routes, CORS, réponses d'erreur et service de public/
 backend/app/models.py                structure des questions et du quiz
-backend/app/config.py                limites et fournisseur IA (.env)
+backend/app/config.py                limites, réglages OCR et fournisseur IA (.env)
 backend/app/errors.py                erreurs métier avec code HTTP
 backend/app/middleware.py            limite du corps HTTP avant lecture multipart
-backend/app/services/pdf_service.py  validation PDF et extraction du texte
+backend/app/services/pdf_service.py  validation PDF et extraction du texte (pypdf puis OCR)
+backend/app/services/ocr_service.py  OCR Tesseract des pages scannées (rendu PyMuPDF)
 backend/app/services/quiz_service.py  prompt, appel IA et validation du quiz
 backend/tests/                      tests sans crédit API
 ```
 
-**PDF → FastAPI → extraction → LLM → validation → JSON**
+**PDF → FastAPI → extraction (pypdf, puis OCR si besoin) → LLM → validation → JSON**
 
 1. FastAPI reçoit le formulaire et valide ses champs. Le middleware limite le
    corps HTTP, même si l'envoi n'annonce pas sa taille.
 2. Le service PDF vérifie le nom, le type, la taille et la signature `%PDF-`.
-   `PdfReader` lit les pages et `extract_text()` récupère le texte.
+   `extract_pdf_text()` lit chaque page avec pypdf, puis envoie à l'OCR les
+   seules pages sans assez de texte (voir « Extraction du texte et OCR »).
 3. Le service quiz donne au modèle IA le texte du cours et des consignes : difficulté,
    nombre de questions, 4 choix et aucune information externe. Une liste vide
    est autorisée pour signaler que le contenu est insuffisant.
@@ -201,8 +209,95 @@ backend/tests/                      tests sans crédit API
    valide. Le service contrôle aussi le nombre de questions et les doublons.
 5. FastAPI sérialise le modèle `Quiz` en JSON pour le frontend.
 
-Les opérations PDF et IA sont synchrones, dans une route `def` exécutée
+Les opérations PDF, OCR et IA sont synchrones, dans une route `def` exécutée
 par FastAPI dans son pool de threads. Les routes de santé restent indépendantes.
+
+## Extraction du texte et OCR
+
+`extract_pdf_text()` (`services/pdf_service.py`) traite chaque page séparément :
+
+1. **pypdf d'abord** : le texte sélectionnable de chaque page est lu, comme avant.
+2. **Tri des pages** : une page où pypdf trouve moins de **50 lettres ou chiffres**
+   (`OCR_MIN_PAGE_CHARACTERS`) est considérée comme scannée ou presque vide.
+   Les espaces, la ponctuation et les symboles ne comptent pas.
+3. **OCR de ces pages seulement** (`services/ocr_service.py`) : PyMuPDF dessine la
+   page en image, en mémoire (niveaux de gris, 200 DPI), puis Tesseract la lit via
+   pytesseract. Les lignes sans lettre ni chiffre (traits, taches) sont retirées.
+4. **Fusion** : le texte OCR remplace celui de pypdf seulement s'il contient plus
+   de lettres et de chiffres. Une page n'est donc jamais moins bien lue qu'avant.
+5. **Ordre d'origine** : les pages sont réunies dans l'ordre du document, puis la
+   suite ne change pas (limites, appel IA, validation Pydantic).
+
+Un PDF dont toutes les pages contiennent du texte ne lance ni PyMuPDF ni Tesseract.
+
+### Réglages (`backend/app/config.py`)
+
+| Constante | Valeur | Rôle |
+|---|---|---|
+| `OCR_MIN_PAGE_CHARACTERS` | 50 | seuil (lettres et chiffres lus par pypdf) sous lequel une page passe à l'OCR |
+| `OCR_DPI` | 200 | résolution de l'image envoyée à Tesseract |
+| `OCR_MAX_PIXELS` | 8 000 000 | taille maximale d'une image : une page démesurée est réduite |
+| `OCR_LANGUAGES` | `fra+eng` | langues de Tesseract (paquets `tesseract-ocr-fra` et `tesseract-ocr-eng`) |
+| `OCR_TIMEOUT_SECONDS` | 60 | durée totale d'OCR par document |
+| `OCR_MAX_PARALLEL_PAGES` | 1 | pages lues en même temps sur tout le serveur |
+
+Les limites existantes ne changent pas : 5 Mio et 50 pages sont vérifiés
+**avant** tout OCR ; 60 000 caractères sont vérifiés avant l'OCR, puis sur le
+texte final.
+
+### Erreurs
+
+| Situation | Résultat |
+|---|---|
+| Page vide, ou OCR qui ne lit rien | page ignorée ; si le document entier est vide : `422 NO_TEXT` « Impossible d'extraire suffisamment de texte de ce document. » |
+| Tesseract absent ou en erreur, délai de 60 s dépassé | ces pages gardent le texte pypdf (souvent vide) ; si le texte restant ne suffit pas : `503 OCR_FAILED` |
+| PDF mixte dont l'OCR échoue mais dont les pages texte suffisent | quiz créé avec les pages texte, comme avant l'OCR ; avertissement dans le journal |
+| PDF endommagé, protégé, trop lourd, plus de 50 pages | erreurs habituelles, avant tout OCR |
+
+Ni trace Python ni message de Tesseract ne sont renvoyés au navigateur.
+
+### Performances sur Raspberry Pi
+
+- Seules les pages sans texte passent à l'OCR ; un PDF texte coûte le même temps qu'avant.
+- Compter quelques secondes par page scannée sur un Raspberry Pi (estimation :
+  la durée réelle est écrite dans le journal, voir ci-dessous).
+- Une seule page est lue à la fois sur tout le serveur, et au plus 60 s par
+  document : au-delà, les pages restantes ne sont pas lues.
+- 200 DPI au lieu de 300 : plus de deux fois moins de pixels (une page A4 fait
+  environ 3,9 millions de pixels, soit environ 4 Mo en niveaux de gris) pour
+  une lecture correcte des cours imprimés en taille normale.
+- L'interface garde l'écran « Génération en cours » et attend jusqu'à 190 s
+  (60 s d'OCR + 120 s d'IA + marge).
+
+### Sécurité
+
+- Le PDF reste en mémoire : le backend ne l'écrit jamais sur le disque, et le nom
+  d'origine du fichier sert seulement à vérifier l'extension `.pdf`.
+- pytesseract lance le programme `tesseract` avec des arguments fixes (langues,
+  DPI), sans shell et sans le nom du fichier.
+- pytesseract écrit l'image et le résultat dans le dossier temporaire du système
+  (`/tmp` dans le conteneur, fichiers `tess_*` à nom aléatoire) et les supprime
+  dans un bloc `finally`, même après une erreur ou un délai dépassé.
+
+### Journal
+
+Chaque PDF produit des lignes de ce type (exemple) :
+
+```text
+INFO:     OCR : 2 page(s) lue(s), 0 en echec, 6.3 s
+INFO:     PDF : 5 page(s), 2 envoyee(s) a l'OCR, 0 en echec, 8412 caracteres, 6.5 s
+```
+
+Seulement des compteurs et des durées : jamais le contenu du cours, le nom du
+fichier ou la clé API. Les échecs (Tesseract absent, page illisible, délai
+dépassé) apparaissent en `WARNING` ou `ERROR`.
+
+### Dépendances et licences
+
+`pymupdf` (rendu des pages) et `pytesseract` sont dans `requirements.txt`, avec
+des paquets précompilés pour Linux ARM64 (Raspberry Pi). Le programme Tesseract
+et ses langues s'installent à part (`apt-get`, voir « Docker »). PyMuPDF est sous
+licence AGPL : compatible avec ce dépôt public, à revoir si le code devenait privé.
 
 ## Limites du prototype
 
@@ -212,18 +307,19 @@ limité à 5 Mio + 64 Kio pour laisser de la place aux champs multipart.
 Le fichier est lu avec une limite, et le cours trop long est refusé sans
 troncature ni envoi partiel au LLM.
 
-Les scans, illustrations et textes présents uniquement dans des images ne sont
-pas lus : aucun OCR n'est inclus. Dans un PDF mixte, seul le texte extractible
-sert de source. Le minimum de caractères ne prouve pas la richesse pédagogique.
+Les pages scannées sont lues par OCR, qui peut se tromper sur un scan flou,
+penché ou manuscrit. Une image placée sur une page qui contient déjà assez de
+texte n'est pas lue. Le minimum de caractères ne prouve pas la richesse pédagogique.
 
 La consigne demande des extraits du cours dans les explications, mais leur
 exactitude n'est pas vérifiée automatiquement. Un JSON valide ne garantit pas
 des réponses justes. Une relecture humaine reste nécessaire pour évaluer
 l'incertitude pédagogique de ce MVP.
 
-Le délai du fournisseur IA est de 120 secondes, sans nouvelle tentative
-automatique. Le backend n'enregistre ni historique ni PDF
-dans le projet ; les éventuels fichiers temporaires multipart sont fermés.
+L'OCR dispose d'au plus 60 secondes par document, puis le fournisseur IA de
+120 secondes, sans nouvelle tentative automatique. Le backend n'enregistre ni
+historique ni PDF dans le projet ; les éventuels fichiers temporaires multipart
+sont fermés, et ceux de Tesseract supprimés après chaque page.
 Il n'y a ni comptes, ni authentification, ni base de données, ni limite par
 utilisateur. Ce MVP est prévu pour les essais locaux.
 
@@ -240,6 +336,51 @@ les messages d'erreur par des textes pour les élèves (`public/js/api.js`).
 adresse, appelle l'API. Il contient des origines séparées par des virgules
 (protocole, hôte et port, sans chemin ni slash final). Éviter `*`.
 
+## Docker (Raspberry Pi)
+
+Le `Dockerfile` à la racine construit une image avec Python 3.13, les
+dépendances et Tesseract (français et anglais). L'image de base
+`python:3.13-slim-bookworm` existe pour arm64 : les mêmes commandes
+fonctionnent sur le Raspberry Pi et sur un PC.
+
+Depuis la racine du dépôt :
+
+```bash
+docker build -t quiz-ia .
+docker run -d --name quiz-ia --restart unless-stopped --env-file backend/.env -p 8080:8000 quiz-ia
+```
+
+- Site : `http://<adresse-du-pi>:8080`. Le port 8080 évite le port 8000 de
+  l'hôte, souvent déjà pris (par exemple par Portainer).
+- La clé reste dans `backend/.env` sur la machine : `.dockerignore` l'exclut de
+  l'image et `--env-file` la transmet au démarrage.
+- `--restart unless-stopped` relance le site après un redémarrage du Pi.
+- Journal : `docker logs -f quiz-ia`. Tests avec le vrai Tesseract :
+  `docker run --rm quiz-ia python -m unittest discover -s backend/tests -v`.
+
+Mise à jour après un `git pull` :
+
+```bash
+docker build -t quiz-ia .
+docker rm -f quiz-ia
+docker run -d --name quiz-ia --restart unless-stopped --env-file backend/.env -p 8080:8000 quiz-ia
+```
+
+**Installation manuelle** (conteneur ou serveur Linux où le dépôt est cloné,
+avec `.venv` et uvicorn lancé à la main) : installer Tesseract une fois, puis
+les nouvelles dépendances Python, et relancer uvicorn (`sudo` inutile en root) :
+
+```bash
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-fra tesseract-ocr-eng
+tesseract --list-langs
+git pull
+.venv/bin/python -m pip install -r backend/requirements.txt
+```
+
+`tesseract --list-langs` doit afficher `eng` et `fra`. Sans Tesseract, le site
+fonctionne comme avant : seuls les PDF scannés sont refusés (`OCR_FAILED`).
+
 ## Tests
 
 Depuis la racine du dépôt, avec `.venv` activé :
@@ -249,6 +390,12 @@ python -m unittest discover -s backend/tests -v
 python -m unittest discover -s prototype-experimental/tests -v
 git check-ignore backend/.env
 ```
+
+`test_ocr.py` couvre l'extraction : PDF texte (OCR jamais appelé), scanné,
+mixte (ordre des pages), vide, erreurs de Tesseract, délai, limites et journal.
+Tesseract y est simulé, donc ces tests passent sans lui. `RealTesseractTests`
+utilise le vrai Tesseract et ne tourne que s'il est installé, par exemple
+dans l'image Docker (commande dans « Docker »).
 
 Les tests créent des PDF en mémoire, vérifient les endpoints, les limites,
 CORS, OpenAPI et les modèles, et simulent les réponses HTTP du fournisseur (NVIDIA, OpenRouter, OpenAI) avec le vrai
