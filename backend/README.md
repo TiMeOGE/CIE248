@@ -55,7 +55,7 @@ lent) ; `z-ai/glm-5.3` et `z-ai/glm-5.3-flash` n'ont renvoyé aucune réponse en
 150 s (file d'attente saturée), d'où l'erreur `AI_TIMEOUT`. L'ancienne variable `OPENAI_API_KEY` reste lue si
 `AI_API_KEY` est vide. Les modèles gratuits (NVIDIA, modèles `:free`
 d'OpenRouter) ont des limites de débit et peuvent être lents : le délai
-accordé à l'IA va de 120 à 270 secondes selon le nombre de questions et la
+accordé à l'IA va de 120 à 360 secondes selon le nombre de questions et la
 difficulté (voir « Délai de l'IA »). Le texte du cours est envoyé au fournisseur
 choisi : ne pas y mettre de données personnelles.
 
@@ -113,7 +113,7 @@ au moins `file` **ou** `text` :
 |---|---|---|---|
 | `file` | fichier | facultatif | PDF de 5 Mio maximum |
 | `text` | texte | facultatif | texte du cours collé ; avec un PDF, ajouté après son texte |
-| `question_count` | entier | `5` | de 1 à 10 |
+| `question_count` | entier | `5` | de 1 à 15 (l'interface propose 5, 10 ou 15) |
 | `difficulty` | texte | `intermediaire` | `facile`, `intermediaire`, `difficile` |
 
 La difficulté change la consigne donnée à l'IA (`DIFFICULTY_GUIDES` dans
@@ -136,6 +136,7 @@ délai = (60 s + 12 s × nombre de questions) × coefficient de difficulté
 |---|---|---|---|
 | 5 questions | 120 s | 150 s | 180 s |
 | 10 questions | 180 s | 225 s | 270 s |
+| 15 questions | 240 s | 300 s | 360 s |
 
 Au-delà, le serveur répond `504 AI_TIMEOUT`. Le navigateur fait le même calcul
 (`generateTimeoutMs()` dans `public/js/api.js`) et y ajoute 60 s d'OCR et 10 s
@@ -288,7 +289,7 @@ Ni trace Python ni message de Tesseract ne sont renvoyés au navigateur.
   une lecture correcte des cours imprimés en taille normale.
 - L'interface garde l'écran « Génération en cours » et attend 60 s d'OCR, plus
   le délai de l'IA pour les réglages choisis, plus 10 s de marge : de 190 s
-  (5 questions, Facile) à 340 s (10 questions, Difficile).
+  (5 questions, Facile) à 430 s (15 questions, Difficile).
 
 ### Sécurité
 
@@ -323,7 +324,7 @@ licence AGPL : compatible avec ce dépôt public, à revoir si le code devenait 
 ## Limites du prototype
 
 Les constantes sont dans `backend/app/config.py` : **5 Mio**, **50 pages**,
-**200 à 60 000 caractères**, **1 à 10 questions**. Le corps HTTP total est
+**200 à 60 000 caractères**, **1 à 15 questions**. Le corps HTTP total est
 limité à 5 Mio + 64 Kio pour laisser de la place aux champs multipart.
 Le fichier est lu avec une limite, et le cours trop long est refusé sans
 troncature ni envoi partiel au LLM.
@@ -338,7 +339,7 @@ des réponses justes. Une relecture humaine reste nécessaire pour évaluer
 l'incertitude pédagogique de ce MVP.
 
 L'OCR dispose d'au plus 60 secondes par document, puis le fournisseur IA de
-120 à 270 secondes selon les réglages, sans nouvelle tentative automatique. Le backend n'enregistre ni
+120 à 360 secondes selon les réglages, sans nouvelle tentative automatique. Le backend n'enregistre ni
 historique ni PDF dans le projet ; les éventuels fichiers temporaires multipart
 sont fermés, et ceux de Tesseract supprimés après chaque page.
 Il n'y a ni comptes, ni authentification, ni base de données, ni limite par

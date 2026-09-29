@@ -51,7 +51,10 @@ def create_app() -> FastAPI:
         if "file" in fields:
             return error_response(415, "INVALID_FILE_TYPE", "Le champ file doit contenir un fichier PDF.")
         if "question_count" in fields:
-            return error_response(422, "INVALID_QUESTION_COUNT", "question_count doit etre un entier entre 1 et 10.")
+            return error_response(
+                422, "INVALID_QUESTION_COUNT",
+                f"question_count doit etre un entier entre {MIN_QUESTIONS} et {MAX_QUESTIONS}.",
+            )
         if "difficulty" in fields:
             return error_response(422, "INVALID_DIFFICULTY", "Choisir facile, intermediaire ou difficile.")
         return error_response(422, "INVALID_INPUT", "Les champs de la requete sont invalides.")

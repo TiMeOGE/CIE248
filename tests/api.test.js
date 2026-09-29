@@ -11,6 +11,7 @@ test('generateTimeoutMs : 60 s d\'OCR + délai IA selon les réglages + 10 s de 
   const expectedAiSeconds = [
     [5, 'facile', 120], [5, 'intermediaire', 150], [5, 'difficile', 180],
     [10, 'facile', 180], [10, 'intermediaire', 225], [10, 'difficile', 270],
+    [15, 'facile', 240], [15, 'intermediaire', 300], [15, 'difficile', 360],
   ];
   for (const [count, difficulty, aiSeconds] of expectedAiSeconds) {
     assert.equal(generateTimeoutMs(count, difficulty), (60 + aiSeconds + 10) * 1000, `${count} ${difficulty}`);

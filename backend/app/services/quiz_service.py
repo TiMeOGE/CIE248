@@ -55,7 +55,7 @@ def generate_quiz(text: str, question_count: int = 5, difficulty: Difficulty = "
     if not model:
         raise ApiError(503, "AI_NOT_CONFIGURED", "Configurer AI_MODEL sur le backend.")
     if type(question_count) is not int or not MIN_QUESTIONS <= question_count <= MAX_QUESTIONS:
-        raise ApiError(422, "INVALID_QUESTION_COUNT", "Demander entre 1 et 10 questions.")
+        raise ApiError(422, "INVALID_QUESTION_COUNT", f"Demander entre {MIN_QUESTIONS} et {MAX_QUESTIONS} questions.")
     if not MIN_TEXT_CHARACTERS <= len(text.strip()) <= MAX_TEXT_CHARACTERS:
         raise ApiError(422, "INVALID_TEXT", "Le cours doit contenir entre 200 et 60 000 caracteres.")
 
