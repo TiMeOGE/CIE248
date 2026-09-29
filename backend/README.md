@@ -354,6 +354,12 @@ adresse, donc le navigateur n'a pas besoin de CORS. L'interface envoie un
 `correctIndex`) dans `public/js/quiz-logic.js` (`fromServerQuiz`) et remplace
 les messages d'erreur par des textes pour les élèves (`public/js/api.js`).
 
+Les fichiers de l'interface sont envoyés avec `Cache-Control: no-cache`
+(`RevalidatedStaticFiles` dans `main.py`) : le navigateur revérifie chaque
+fichier et reçoit une réponse `304` très légère s'il n'a pas changé. Sans cela,
+après une mise à jour, il pouvait garder un ancien module JavaScript à côté
+d'un nouveau : l'import échouait et la page ne fonctionnait plus.
+
 `CORS_ORIGINS` dans `backend/.env` ne sert que si une autre page, sur une autre
 adresse, appelle l'API. Il contient des origines séparées par des virgules
 (protocole, hôte et port, sans chemin ni slash final). Éviter `*`.

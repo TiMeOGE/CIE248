@@ -110,7 +110,8 @@ tests/     fixtures/  *.test.js
   vérification que `sourceQuote` existe dans le cours · 1 relance automatique
   si la réponse IA est invalide · CI GitHub Actions
 - **NICE** : Vrai/Faux · historique local · import `.docx` · OCR des PDF scannés
-  (fait : Tesseract côté serveur, voir `backend/README.md`)
+  (fait : Tesseract côté serveur, voir `backend/README.md`) · refaire seulement
+  les questions ratées (fait : bouton de l'écran Résultat, sans nouvel appel à l'IA)
 - **HORS PROTOTYPE** : comptes, base de données, classes,
   questions ouvertes corrigées par IA
 

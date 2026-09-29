@@ -25,6 +25,7 @@ import {
   prepareQuiz,
   resultMessage,
   titleFromFileName,
+  wrongQuestions,
 } from './quiz-logic.js';
 
 const $ = (id) => document.getElementById(id);
@@ -43,7 +44,8 @@ const SLOW_GENERATION_SECONDS = 40;
 // Une seule source de vérité : l'affichage est toujours recalculé à partir de cet objet.
 const state = {
   generation: null, // pendant une génération : { controller, startedAt, timer }
-  quiz: null, // quiz en cours : { title, questions }
+  quiz: null, // partie en cours : { title, questions }
+  fullQuiz: null, // quiz complet d'origine, relancé par « Refaire le quiz »
   origin: 'demo', // 'ai' (généré par l'IA) ou 'demo' (préparé à l'avance)
   difficulty: 'intermediaire',
   warnings: [],
@@ -265,7 +267,8 @@ async function checkServer() {
 }
 
 /* 5. Écran 2 : Quiz ------------------------------------------- */
-function startQuiz(quiz, { origin, difficulty, warnings }) {
+function startQuiz(quiz, { origin, difficulty, warnings, onlyWrong = false }) {
+  if (!onlyWrong) state.fullQuiz = quiz;
   state.quiz = prepareQuiz(quiz); // mélange les choix de chaque question
   state.origin = origin;
   state.difficulty = difficulty;
@@ -275,12 +278,13 @@ function startQuiz(quiz, { origin, difficulty, warnings }) {
   state.startedAt = Date.now();
 
   const total = state.quiz.questions.length;
+  const count = onlyWrong ? `${total} ${total > 1 ? 'questions' : 'question'} à revoir` : `${total} questions`;
   $('quiz-origin').textContent = origin === 'ai' ? 'Quiz généré par IA' : 'Quiz de démonstration';
   $('quiz-title').textContent = state.quiz.title.trim() || 'Ton quiz';
   $('quiz-meta').textContent =
     origin === 'ai'
-      ? `${total} questions · ${DIFFICULTIES[difficulty]?.label ?? ''}`
-      : `${total} questions · Préparé à l'avance, sans IA`;
+      ? `${count} · ${DIFFICULTIES[difficulty]?.label ?? ''}`
+      : `${count} · Préparé à l'avance, sans IA`;
 
   $('quiz-warnings-text').replaceChildren(...warnings.map((warning) => element('p', '', warning)));
   $('quiz-warnings').hidden = warnings.length === 0;
@@ -393,10 +397,27 @@ function finishQuiz() {
       ? 'Ce quiz a été créé par une IA à partir de ton texte. Il peut contenir des erreurs : en cas de doute, vérifie dans ton cours ou demande à ton enseignant·e.'
       : "Quiz de démonstration préparé à l'avance, sans IA. Le score sert seulement à t'entraîner.";
 
+  // Une seule action principale : refaire les erreurs s'il y en a, sinon refaire le quiz.
+  const wrongCount = total - correct;
+  $('retry-wrong-label').textContent =
+    wrongCount === 1 ? 'Refaire la question ratée' : `Refaire les ${wrongCount} questions ratées`;
+  $('retry-wrong-btn').hidden = wrongCount === 0;
+  $('retry-btn').classList.toggle('btn--primary', wrongCount === 0);
+  $('retry-btn').classList.toggle('btn--secondary', wrongCount > 0);
+
   state.reviewFilter = 'all';
   renderReview();
   showScreen('results', 'results-title');
   animateScoreRing(correct / total);
+}
+
+/** Nouvelle partie avec seulement les questions ratées ; leurs choix sont de nouveau mélangés. */
+function retryWrongQuestions() {
+  const questions = wrongQuestions(state.quiz.questions, state.answers);
+  startQuiz(
+    { title: state.quiz.title, questions },
+    { origin: state.origin, difficulty: state.difficulty, warnings: state.warnings, onlyWrong: true },
+  );
 }
 
 function animateScoreRing(ratio) {
@@ -414,7 +435,7 @@ function setReviewFilter(filter) {
 
 function renderReview() {
   const questions = state.quiz.questions;
-  const wrongCount = questions.filter((question, i) => state.answers[i] !== question.correctIndex).length;
+  const wrongCount = wrongQuestions(questions, state.answers).length;
   $('filter-all').textContent = `Toutes (${questions.length})`;
   $('filter-wrong').textContent = `À revoir (${wrongCount})`;
   $('filter-all').setAttribute('aria-pressed', String(state.reviewFilter === 'all'));
@@ -513,8 +534,9 @@ function init() {
   $('quit-btn').addEventListener('click', quitQuiz);
 
   // Écran 3
+  $('retry-wrong-btn').addEventListener('click', retryWrongQuestions);
   $('retry-btn').addEventListener('click', () =>
-    startQuiz(state.quiz, { origin: state.origin, difficulty: state.difficulty, warnings: state.warnings }),
+    startQuiz(state.fullQuiz, { origin: state.origin, difficulty: state.difficulty, warnings: state.warnings }),
   );
   $('new-btn').addEventListener('click', goHome);
   $('filter-all').addEventListener('click', () => setReviewFilter('all'));

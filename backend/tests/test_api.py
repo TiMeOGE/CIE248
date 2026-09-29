@@ -50,6 +50,11 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(counts, [5, 10, 15])
             self.assertEqual(max(counts), MAX_QUESTIONS)
             self.assertEqual(self.client.get("/js/api.js").status_code, 200)
+            # Apres une mise a jour, le navigateur reverifie chaque fichier : jamais d'ancien JS melange au nouveau.
+            script = self.client.get("/js/quiz-logic.js")
+            self.assertEqual((page.headers["cache-control"], script.headers["cache-control"]), ("no-cache", "no-cache"))
+            unchanged = self.client.get("/js/quiz-logic.js", headers={"If-None-Match": script.headers["etag"]})
+            self.assertEqual(unchanged.status_code, 304)
             self.assertEqual(self.client.get("/api/inconnu").status_code, 404)
         generate.assert_not_called()
 

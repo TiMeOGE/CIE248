@@ -176,6 +176,14 @@ export function computeScore(questions, answers) {
   return { correct, total, percent };
 }
 
+/**
+ * Questions à revoir : réponse fausse ou absente, dans l'ordre du quiz.
+ * Sert au corrigé (« À revoir ») et au bouton « Refaire les questions ratées ».
+ */
+export function wrongQuestions(questions, answers) {
+  return questions.filter((question, i) => answers[i] !== question.correctIndex);
+}
+
 /** Nombre de questions auxquelles l'élève a répondu. */
 export function countAnswered(answers) {
   return answers.filter((answer) => answer !== null).length;

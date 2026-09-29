@@ -31,6 +31,19 @@ def error_response(status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
 
 
+class RevalidatedStaticFiles(StaticFiles):
+    """Le navigateur reverifie chaque fichier (reponse 304 legere s'il n'a pas change).
+
+    Sans cela, apres une mise a jour, il peut garder un ancien module JS en cache a cote
+    d'un nouveau : l'import echoue et la page ne fonctionne plus.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 def create_app() -> FastAPI:
     load_dotenv(BACKEND_DIR / ".env", override=False)
     app = FastAPI(title="Quiz IA API", version="0.1.0", debug=False)
@@ -109,7 +122,7 @@ def create_app() -> FastAPI:
         return generate_quiz(course, question_count, difficulty)
 
     # Interface web (public/) servie a la racine, apres les routes de l'API.
-    app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
+    app.mount("/", RevalidatedStaticFiles(directory=PUBLIC_DIR, html=True), name="public")
 
     return app
 
