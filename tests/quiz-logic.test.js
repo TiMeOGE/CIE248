@@ -125,7 +125,7 @@ test('isValidQuiz refuse les réponses mal formées sans planter', () => {
 
 test('le quiz de démonstration respecte le contrat', () => {
   assert.equal(isValidQuiz(DEMO_QUIZ), true);
-  assert.ok(DEMO_QUIZ.questions.length >= 10, 'il faut au moins 10 questions pour le réglage « 10 questions »');
+  assert.ok(DEMO_QUIZ.questions.length >= 15, 'il faut au moins 15 questions pour le réglage « 15 questions »');
 });
 
 test('chaque extrait du quiz de démonstration figure bien dans le cours d’exemple', () => {

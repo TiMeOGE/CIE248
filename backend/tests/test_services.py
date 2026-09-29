@@ -61,7 +61,7 @@ class ServiceTests(unittest.TestCase):
                 question[field] = value
                 with self.assertRaises(ValidationError):
                     Question.model_validate(question)
-        for count in (0, 11):
+        for count in (0, 16):
             with self.assertRaises(ValidationError):
                 Quiz.model_validate(quiz_data(count))
 
@@ -114,6 +114,7 @@ class ServiceTests(unittest.TestCase):
         expected = [
             (5, "facile", 120), (5, "intermediaire", 150), (5, "difficile", 180),
             (10, "facile", 180), (10, "intermediaire", 225), (10, "difficile", 270),
+            (15, "facile", 240), (15, "intermediaire", 300), (15, "difficile", 360),
         ]
         for count, difficulty, seconds in expected:
             with self.subTest(count=count, difficulty=difficulty), \

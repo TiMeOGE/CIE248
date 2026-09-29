@@ -1,11 +1,12 @@
 import os
+import re
 import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 from backend.app import main
-from backend.app.config import MAX_PDF_BYTES, MAX_REQUEST_BYTES
+from backend.app.config import MAX_PDF_BYTES, MAX_QUESTIONS, MAX_REQUEST_BYTES
 from backend.app.errors import ApiError
 from backend.app.models import Quiz
 from backend.app.services import ocr_service
@@ -44,6 +45,10 @@ class ApiTests(unittest.TestCase):
             page = self.client.get("/")
             self.assertEqual(page.status_code, 200)
             self.assertIn('<script type="module" src="js/app.js">', page.text)
+            # Les boutons "Nombre de questions" restent dans la limite acceptee par le serveur.
+            counts = [int(value) for value in re.findall(r'name="count" value="(\d+)"', page.text)]
+            self.assertEqual(counts, [5, 10, 15])
+            self.assertEqual(max(counts), MAX_QUESTIONS)
             self.assertEqual(self.client.get("/js/api.js").status_code, 200)
             self.assertEqual(self.client.get("/api/inconnu").status_code, 404)
         generate.assert_not_called()
@@ -102,7 +107,7 @@ class ApiTests(unittest.TestCase):
 
     def test_question_count_and_difficulty_validation(self):
         with patch.object(main, "generate_quiz") as generate:
-            for count in ("0", "11", "-1", "1.5", "abc"):
+            for count in ("0", "16", "-1", "1.5", "abc"):
                 with self.subTest(count=count):
                     response = self.post_pdf(question_count=count)
                     self.assertEqual(response.status_code, 422)
@@ -131,7 +136,7 @@ class ApiTests(unittest.TestCase):
         generate.assert_not_called()
 
     def test_pdf_to_json_and_count_boundaries(self):
-        for count in (1, 5, 10):
+        for count in (1, 5, 10, 15):
             with self.subTest(count=count), patch.object(main, "generate_quiz", return_value=Quiz(**quiz_data(count))) as generate:
                 response = self.post_pdf(question_count=count, difficulty="difficile")
                 self.assertEqual(response.status_code, 200, response.text)
