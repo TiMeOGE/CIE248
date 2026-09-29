@@ -39,6 +39,7 @@ class ServiceTests(unittest.TestCase):
             return httpx.Response(status, json=body)
 
         def factory(**kwargs):
+            self.client_timeout = kwargs["timeout"]
             return OpenAI(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handle)))
 
         return patch.object(quiz_service, "OpenAI", side_effect=factory)
@@ -107,6 +108,18 @@ class ServiceTests(unittest.TestCase):
                 self.assertIn(f"Difficulte {difficulty.upper()}", system)
                 prompts.add(system)
         self.assertEqual(len(prompts), 3)
+
+    def test_ai_timeout_grows_with_questions_and_difficulty(self):
+        # Memes valeurs que generateTimeoutMs dans public/js/api.js (tests/api.test.js).
+        expected = [
+            (5, "facile", 120), (5, "intermediaire", 150), (5, "difficile", 180),
+            (10, "facile", 180), (10, "intermediaire", 225), (10, "difficile", 270),
+        ]
+        for count, difficulty, seconds in expected:
+            with self.subTest(count=count, difficulty=difficulty), \
+                    self.fake_openai(self.response_body(quiz_data(count))):
+                quiz_service.generate_quiz(COURSE, count, difficulty)
+                self.assertEqual(self.client_timeout, seconds)
 
     def test_json_wrapped_in_reasoning_or_markdown(self):
         fence = "`" * 3

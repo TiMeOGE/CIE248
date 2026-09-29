@@ -4,9 +4,24 @@
 
 import { fromServerQuiz } from './quiz-logic.js';
 
-// Le serveur limite l'OCR des pages scannées à 60 s, puis l'appel à l'IA à 120 s ; celui-ci est une sécurité de plus.
-const GENERATE_TIMEOUT_MS = 190_000;
 const STATUS_TIMEOUT_MS = 5_000;
+
+// Délais du serveur (backend/app/config.py) : OCR des pages scannées, puis IA selon le travail demandé.
+const OCR_TIMEOUT_SECONDS = 60;
+const AI_TIMEOUT_BASE_SECONDS = 60;
+const AI_TIMEOUT_PER_QUESTION_SECONDS = 12;
+const AI_TIMEOUT_DIFFICULTY_FACTORS = { facile: 1, intermediaire: 1.25, difficile: 1.5 };
+const MARGIN_SECONDS = 10;
+
+/**
+ * Temps d'attente maximal du navigateur : OCR + IA + marge. Le serveur répond normalement avant ;
+ * ce délai est une sécurité de plus. Même calcul que ai_timeout_seconds() côté serveur.
+ */
+export function generateTimeoutMs(count, difficulty) {
+  const factor = AI_TIMEOUT_DIFFICULTY_FACTORS[difficulty] ?? AI_TIMEOUT_DIFFICULTY_FACTORS.difficile;
+  const aiSeconds = (AI_TIMEOUT_BASE_SECONDS + AI_TIMEOUT_PER_QUESTION_SECONDS * count) * factor;
+  return (OCR_TIMEOUT_SECONDS + aiSeconds + MARGIN_SECONDS) * 1000;
+}
 
 /** Erreur avec un code (ex. AI_TIMEOUT) et un message prêt à afficher. */
 export class ApiError extends Error {
@@ -40,7 +55,7 @@ export async function fetchStatus() {
  * @throws {ApiError} avec un message compréhensible par l'utilisateur
  */
 export async function requestQuiz({ text, file, count, difficulty, title }, cancelSignal) {
-  const signal = AbortSignal.any([cancelSignal, AbortSignal.timeout(GENERATE_TIMEOUT_MS)]);
+  const signal = AbortSignal.any([cancelSignal, AbortSignal.timeout(generateTimeoutMs(count, difficulty))]);
 
   // FormData : le navigateur choisit lui-même l'en-tête multipart (ne pas définir Content-Type).
   const form = new FormData();
