@@ -34,6 +34,17 @@
     if (!savedTheme()) applyTheme(event.matches ? 'dark' : 'light');
   });
 
+  // Impression : toujours le thème clair (texte foncé sur papier blanc), puis retour au thème choisi.
+  let themeBeforePrint = null;
+  window.addEventListener('beforeprint', () => {
+    themeBeforePrint = root.dataset.theme;
+    root.dataset.theme = 'light';
+  });
+  window.addEventListener('afterprint', () => {
+    if (themeBeforePrint) root.dataset.theme = themeBeforePrint;
+    themeBeforePrint = null;
+  });
+
   document.addEventListener('DOMContentLoaded', () => {
     applyTheme(root.dataset.theme); // le bouton n'existait pas encore au premier appel
     document.getElementById('theme-toggle').addEventListener('click', () => {

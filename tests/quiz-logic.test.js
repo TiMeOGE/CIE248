@@ -5,12 +5,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  HISTORY_MAX,
   PDF_MAX_BYTES,
   TEXT_MAX_CHARS,
   TEXT_MIN_CHARS,
+  TXT_MAX_BYTES,
+  addToHistory,
   checkCourseInput,
   checkCourseText,
+  checkTextFile,
+  decodeText,
   fromServerQuiz,
+  parseHistory,
+  reviewFileName,
+  reviewText,
   computeScore,
   countAnswered,
   firstUnanswered,
@@ -214,4 +222,93 @@ test('fromServerQuiz refuse une réponse mal formée sans planter', () => {
 test('titleFromFileName', () => {
   assert.equal(titleFromFileName('Le_cycle-de-l_eau.PDF'), 'Le cycle de l eau');
   assert.equal(titleFromFileName('Chapitre 3.pdf'), 'Chapitre 3');
+});
+
+test('checkTextFile : seulement un .txt, ni vide ni trop lourd', () => {
+  assert.equal(checkTextFile({ name: 'Cours.TXT', size: 1200 }).ok, true);
+  assert.equal(checkTextFile({ name: 'cours.txt', size: TXT_MAX_BYTES }).ok, true);
+  assert.match(checkTextFile({ name: 'cours.pdf', size: 1200 }).message, /Fichier PDF/);
+  assert.match(checkTextFile({ name: 'cours.txt', size: 0 }).message, /vide/);
+  assert.match(checkTextFile({ name: 'cours.txt', size: TXT_MAX_BYTES + 1 }).message, /256 Ko/);
+});
+
+test('decodeText : UTF-8, ancien Windows-1252 et UTF-16 du Bloc-notes', () => {
+  const utf8 = new TextEncoder().encode('Évaporation : l’eau chauffée');
+  assert.equal(decodeText(utf8), 'Évaporation : l’eau chauffée');
+  assert.equal(decodeText(new Uint8Array([0xef, 0xbb, 0xbf, ...utf8])), 'Évaporation : l’eau chauffée'); // BOM retiré
+  assert.equal(decodeText(new Uint8Array([0x63, 0x61, 0x66, 0xe9])), 'café'); // « é » en Windows-1252
+  assert.equal(decodeText(new Uint8Array([0xff, 0xfe, 0x65, 0x00, 0xe0, 0x00])), 'eà'); // UTF-16 LE
+});
+
+test('reviewText : en-tête, réponses, bonnes réponses et explications', () => {
+  const questions = [sampleQuestion, { ...sampleQuestion, question: 'Q2 ?', explanation: 'Parce que.' }];
+  const options = {
+    title: 'Géographie',
+    details: 'Quiz généré par IA · 2 questions · Facile',
+    dateLabel: '6 octobre à 14:32',
+    questions,
+    answers: [0, 2],
+    elapsedMs: 72_000,
+    onlyWrong: false,
+    disclaimer: 'Vérifie dans ton cours.',
+  };
+  assert.equal(
+    reviewText(options),
+    [
+      'Quiz IA : corrigé',
+      'Géographie',
+      'Quiz généré par IA · 2 questions · Facile',
+      'Le 6 octobre à 14:32',
+      '',
+      'Score : 1/2 (50 %)',
+      'Temps : 1 min 12 s',
+      '',
+      '1. Quelle est la capitale de la Suisse ?',
+      '   Ta réponse : Berne (juste)',
+      '   Explication : Berne est la ville fédérale.',
+      '',
+      '2. Q2 ?',
+      '   Ta réponse : Zurich (à revoir)',
+      '   Bonne réponse : Berne',
+      '   Explication : Parce que.',
+      '',
+      'Vérifie dans ton cours.',
+    ].join('\n'),
+  );
+  // Filtre « À revoir » : seulement la question 2, numéro d'origine conservé.
+  const wrongOnly = reviewText({ ...options, onlyWrong: true });
+  assert.ok(wrongOnly.includes('Questions à revoir uniquement'));
+  assert.ok(!wrongOnly.includes('1. Quelle est'));
+  assert.ok(wrongOnly.includes('2. Q2 ?'));
+  assert.ok(reviewText({ ...options, answers: [0, 0], onlyWrong: true }).includes('Aucune question à revoir'));
+});
+
+test('reviewFileName : sans accents ni espaces, avec la date du jour', () => {
+  const date = new Date(2026, 9, 6, 14, 32);
+  assert.equal(reviewFileName("Cycle de l'eau : étape 2", date), 'corrige-cycle-de-l-eau-etape-2-2026-10-06.txt');
+  assert.equal(reviewFileName('', date), 'corrige-quiz-2026-10-06.txt');
+});
+
+test('historique : 5 résultats au plus, le plus récent en premier', () => {
+  const entry = (date) => ({ date, correct: 3, total: 5, durationMs: 60_000, difficulty: 'facile', origin: 'ai', onlyWrong: false });
+  let history = [];
+  for (let date = 1; date <= HISTORY_MAX + 2; date++) history = addToHistory(history, entry(date));
+  assert.equal(history.length, HISTORY_MAX);
+  assert.deepEqual(history.map((item) => item.date), [7, 6, 5, 4, 3]);
+  assert.deepEqual(parseHistory(JSON.stringify(history)), history);
+});
+
+test('parseHistory : ignore les données abîmées et les champs en trop', () => {
+  const good = { date: 1, correct: 2, total: 5, durationMs: 1000, difficulty: 'difficile', origin: 'demo', onlyWrong: true };
+  assert.deepEqual(parseHistory('pas du JSON'), []);
+  assert.deepEqual(parseHistory('{"date": 1}'), []);
+  assert.deepEqual(
+    parseHistory(JSON.stringify([
+      { ...good, cours: 'texte secret' }, // champ inconnu retiré : on ne garde jamais le cours
+      { ...good, correct: 6 }, // plus de bonnes réponses que de questions
+      { ...good, origin: 'autre' },
+      null,
+    ])),
+    [good],
+  );
 });

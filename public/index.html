@@ -31,6 +31,8 @@
     <symbol id="i-play" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z"/></symbol>
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
   </svg>
@@ -113,13 +115,17 @@
             <div class="field">
               <div class="field__top">
                 <label class="field__label" for="course-text">Texte du cours <span class="field__optional" id="text-optional" hidden>(facultatif avec un PDF)</span></label>
-                <button type="button" class="btn btn--ghost btn--sm" id="example-btn">Remplir avec un cours d'exemple</button>
+                <div class="field__actions">
+                  <button type="button" class="btn btn--ghost btn--sm" id="txt-btn">Importer un fichier .txt</button>
+                  <button type="button" class="btn btn--ghost btn--sm" id="example-btn">Remplir avec un cours d'exemple</button>
+                </div>
+                <input type="file" id="txt-file" accept=".txt,text/plain" hidden>
               </div>
               <textarea id="course-text" name="text" class="input textarea" rows="12" spellcheck="true"
                 aria-describedby="course-hint course-error"
                 placeholder="Exemple : L'eau circule continuellement entre les océans, les continents et l'atmosphère…"></textarea>
               <div class="field__meta">
-                <p id="course-hint" class="field__hint">Entre 200 et 60&#8239;000 caractères.</p>
+                <p id="course-hint" class="field__hint">Entre 200 et 60&#8239;000 caractères. Tu peux aussi déposer un fichier .txt ici.</p>
                 <p id="course-count" class="field__count">0 / 60&#8239;000</p>
               </div>
               <p id="course-error" class="field__error" hidden>
@@ -326,6 +332,15 @@
         </div>
       </div>
 
+      <section class="history card" aria-labelledby="history-title">
+        <div class="history__head">
+          <h2 id="history-title" class="history__title">Tes derniers résultats</h2>
+          <button type="button" class="btn btn--ghost btn--sm" id="history-clear">Effacer l'historique</button>
+        </div>
+        <ol class="history__list" id="history-list"></ol>
+        <p class="field__hint">Gardés seulement dans ce navigateur, sans ton cours ni les questions.</p>
+      </section>
+
       <section class="review" aria-labelledby="review-title">
         <div class="review__head">
           <h2 id="review-title" class="review__title">Corrigé</h2>
@@ -333,6 +348,14 @@
             <button type="button" class="filter__btn" id="filter-all" aria-pressed="true"></button>
             <button type="button" class="filter__btn" id="filter-wrong" aria-pressed="false"></button>
           </div>
+        </div>
+        <div class="review__export">
+          <button type="button" class="btn btn--secondary btn--sm" id="print-btn">
+            <svg class="icon"><use href="#i-print"/></svg><span>Imprimer le corrigé</span>
+          </button>
+          <button type="button" class="btn btn--secondary btn--sm" id="download-btn">
+            <svg class="icon"><use href="#i-download"/></svg><span>Télécharger le corrigé (.txt)</span>
+          </button>
         </div>
         <div class="review__list" id="review-list"></div>
         <p class="disclaimer" id="review-disclaimer"></p>
@@ -358,7 +381,7 @@
       </button>
     </div>
     <ol class="dialog__steps">
-      <li><strong>Ajoute ton cours.</strong> Un PDF (5 Mo maximum, même scanné), un texte collé (200 à 60&#8239;000 caractères), ou les deux.</li>
+      <li><strong>Ajoute ton cours.</strong> Un PDF (5 Mo maximum, même scanné), un texte collé ou importé d'un fichier .txt (200 à 60&#8239;000 caractères), ou les deux.</li>
       <li><strong>Choisis tes réglages</strong> puis clique sur « Générer le quiz ». L'IA prépare les questions à partir de ton cours uniquement.</li>
       <li><strong>Réponds aux questions.</strong> À la fin, tu vois ton score et un corrigé qui explique chaque réponse.</li>
     </ol>
@@ -367,6 +390,7 @@
       <li>L'IA peut se tromper : en cas de doute, vérifie dans ton cours ou demande à ton enseignant·e.</li>
       <li>Ton cours est envoyé à un service d'IA externe : n'y mets pas de données personnelles.</li>
       <li>Le quiz de démonstration fonctionne sans IA ni Internet.</li>
+      <li>Tes 5 derniers résultats sont gardés dans ce navigateur, sans ton cours. Tu peux les effacer depuis l'écran Résultat.</li>
     </ul>
     <button type="button" class="btn btn--primary btn--block" id="help-done">J'ai compris</button>
   </dialog>

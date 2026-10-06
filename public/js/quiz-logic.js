@@ -7,6 +7,8 @@ export const TEXT_MIN_CHARS = 200;
 export const TEXT_MAX_CHARS = 60000;
 export const PDF_MAX_BYTES = 5 * 1024 * 1024;
 export const CHOICES_PER_QUESTION = 4;
+export const TXT_MAX_BYTES = 256 * 1024; // 60 000 caractères tiennent largement dans 256 Ko
+export const HISTORY_MAX = 5;
 
 const numberFormat = new Intl.NumberFormat('fr-CH');
 
@@ -66,6 +68,35 @@ export function checkCourseInput(text, file) {
     return { ...checkCourseText(text), field: 'text' };
   }
   return { ok: true, field: '', message: '' };
+}
+
+/** Vérifie un fichier .txt avant de le lire dans la zone de texte. */
+export function checkTextFile(file) {
+  if (!file.name.toLowerCase().endsWith('.txt')) {
+    return { ok: false, message: 'Choisis un fichier .txt. Pour un PDF, utilise le champ « Fichier PDF ».' };
+  }
+  if (file.size === 0) {
+    return { ok: false, message: 'Ce fichier .txt est vide. Choisis un autre fichier.' };
+  }
+  if (file.size > TXT_MAX_BYTES) {
+    return { ok: false, message: 'Ce fichier .txt est trop lourd (256 Ko maximum). Garde un seul chapitre à la fois.' };
+  }
+  return { ok: true, message: '' };
+}
+
+/**
+ * Lit le contenu d'un fichier texte (tableau d'octets).
+ * La plupart sont en UTF-8 ; les anciens fichiers Windows sont souvent en Windows-1252,
+ * et l'option « Unicode » du Bloc-notes donne de l'UTF-16. Sans ces replis, « é » deviendrait « � ».
+ */
+export function decodeText(bytes) {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
 }
 
 /**
@@ -238,4 +269,92 @@ export function formatDuration(milliseconds) {
   const rest = seconds % 60;
   if (minutes === 0) return `${rest} s`;
   return `${minutes} min ${String(rest).padStart(2, '0')} s`;
+}
+
+/**
+ * Corrigé en texte brut, pour le fichier téléchargé : en-tête (quiz, date, score, temps),
+ * puis chaque question avec la réponse de l'élève, la bonne réponse et l'explication.
+ * onlyWrong : seulement les questions à revoir, comme le filtre « À revoir » du corrigé.
+ */
+export function reviewText({ title, details, dateLabel, questions, answers, elapsedMs, onlyWrong, disclaimer }) {
+  const { correct, total, percent } = computeScore(questions, answers);
+  const lines = [
+    'Quiz IA : corrigé',
+    title,
+    details,
+    `Le ${dateLabel}`,
+    '',
+    `Score : ${correct}/${total} (${percent} %)`,
+    `Temps : ${formatDuration(elapsedMs)}`,
+    '',
+  ];
+  if (onlyWrong) {
+    lines.push('Questions à revoir uniquement', '');
+    if (correct === total) lines.push('Aucune question à revoir : toutes tes réponses sont justes !', '');
+  }
+  questions.forEach((question, i) => {
+    const answer = answers[i];
+    const isGood = answer === question.correctIndex;
+    if (onlyWrong && isGood) return;
+    lines.push(`${i + 1}. ${question.question}`);
+    lines.push(`   Ta réponse : ${answer === null ? 'aucune' : question.choices[answer]} (${isGood ? 'juste' : 'à revoir'})`);
+    if (!isGood) lines.push(`   Bonne réponse : ${question.choices[question.correctIndex]}`);
+    if (question.explanation.trim()) lines.push(`   Explication : ${question.explanation.trim()}`);
+    lines.push('');
+  });
+  lines.push(disclaimer);
+  return lines.join('\n');
+}
+
+/** Nom du fichier téléchargé : « corrige-cycle-de-l-eau-2026-10-06.txt » (sans accents ni espaces). */
+export function reviewFileName(title, date) {
+  const pad = (number) => String(number).padStart(2, '0');
+  const isoDate = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const slug = title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // retire les accents : é → e
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return `corrige-${slug || 'quiz'}-${isoDate}.txt`;
+}
+
+/**
+ * Historique local des derniers résultats, du plus récent au plus ancien.
+ * Seulement des chiffres et des réglages : jamais le cours, les questions ni le titre du quiz.
+ */
+export function addToHistory(history, entry) {
+  return [entry, ...history].slice(0, HISTORY_MAX);
+}
+
+/** Relit l'historique enregistré ; ignore tout ce qui n'a pas la forme attendue (données abîmées). */
+export function parseHistory(raw) {
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter(
+      (entry) =>
+        isObject(entry) &&
+        Number.isFinite(entry.date) &&
+        Number.isInteger(entry.total) &&
+        entry.total > 0 &&
+        Number.isInteger(entry.correct) &&
+        entry.correct >= 0 &&
+        entry.correct <= entry.total &&
+        Number.isFinite(entry.durationMs) &&
+        entry.durationMs >= 0 &&
+        typeof entry.difficulty === 'string' &&
+        (entry.origin === 'ai' || entry.origin === 'demo') &&
+        typeof entry.onlyWrong === 'boolean',
+    )
+    .map(({ date, correct, total, durationMs, difficulty, origin, onlyWrong }) => ({
+      date, correct, total, durationMs, difficulty, origin, onlyWrong,
+    }))
+    .slice(0, HISTORY_MAX);
 }
