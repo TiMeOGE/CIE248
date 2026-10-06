@@ -75,6 +75,7 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("exactement 3", system["content"])
         self.assertIn("Difficulte DIFFICILE", system["content"])
         self.assertIn("uniquement sur le document", system["content"])
+        self.assertIn("sans les commencer par Selon le document", system["content"])
         self.assertIn('"correct_answer"', system["content"])
         self.assertIn(COURSE, user["content"])
 
