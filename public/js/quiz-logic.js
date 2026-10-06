@@ -184,6 +184,17 @@ export function wrongQuestions(questions, answers) {
   return questions.filter((question, i) => answers[i] !== question.correctIndex);
 }
 
+/**
+ * Vrai si le cours est le même que lors de la génération précédente : même texte et même PDF.
+ * Un PDF choisi une deuxième fois est un nouvel objet File : on compare donc son nom, sa taille et sa date.
+ */
+export function sameCourse(previous, current) {
+  if (!previous || previous.text !== current.text) return false;
+  const [before, now] = [previous.file, current.file];
+  if (!before || !now) return !before && !now;
+  return before.name === now.name && before.size === now.size && before.lastModified === now.lastModified;
+}
+
 /** Nombre de questions auxquelles l'élève a répondu. */
 export function countAnswered(answers) {
   return answers.filter((answer) => answer !== null).length;

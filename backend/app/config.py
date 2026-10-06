@@ -17,6 +17,8 @@ MIN_TEXT_CHARACTERS = 200
 MAX_TEXT_CHARACTERS = 60_000
 MIN_QUESTIONS = 1
 MAX_QUESTIONS = 15
+# Nouveau quiz sur le meme cours : questions du quiz precedent, pour que l'IA en pose d'autres.
+MAX_PREVIOUS_QUESTION_CHARACTERS = 500
 
 # OCR des pages scannees (services/ocr_service.py), regle pour un Raspberry Pi.
 # Une page dont pypdf lit moins de lettres/chiffres que ce seuil passe a l'OCR.

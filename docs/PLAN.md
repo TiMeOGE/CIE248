@@ -111,7 +111,9 @@ tests/     fixtures/  *.test.js
   si la réponse IA est invalide · CI GitHub Actions
 - **NICE** : Vrai/Faux · historique local · import `.docx` · OCR des PDF scannés
   (fait : Tesseract côté serveur, voir `backend/README.md`) · refaire seulement
-  les questions ratées (fait : bouton de l'écran Résultat, sans nouvel appel à l'IA)
+  les questions ratées (fait : bouton de l'écran Résultat, sans nouvel appel à l'IA) ·
+  nouveau quiz sur le même cours (fait : « Générer d'autres questions », l'IA reçoit
+  les questions déjà posées pour en poser d'autres)
 - **HORS PROTOTYPE** : comptes, base de données, classes,
   questions ouvertes corrigées par IA
 

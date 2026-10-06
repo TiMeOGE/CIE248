@@ -24,6 +24,7 @@ import {
   formatNumber,
   prepareQuiz,
   resultMessage,
+  sameCourse,
   titleFromFileName,
   wrongQuestions,
 } from './quiz-logic.js';
@@ -46,6 +47,7 @@ const state = {
   generation: null, // pendant une génération : { controller, startedAt, timer }
   quiz: null, // partie en cours : { title, questions }
   fullQuiz: null, // quiz complet d'origine, relancé par « Refaire le quiz »
+  lastCourse: null, // dernier cours envoyé à l'IA et ses questions : { text, file, questions }
   origin: 'demo', // 'ai' (généré par l'IA) ou 'demo' (préparé à l'avance)
   difficulty: 'intermediaire',
   warnings: [],
@@ -178,14 +180,18 @@ async function handleGenerate(event) {
 
   const count = selectedCount();
   const difficulty = selectedDifficulty();
+  const text = courseText.value.trim();
   const title = file ? titleFromFileName(file.name) : '';
-  startGenerationUi(count);
+  // Même cours que la génération précédente : l'IA reçoit ses questions pour en poser d'autres.
+  const previousQuestions = sameCourse(state.lastCourse, { text, file }) ? state.lastCourse.questions : [];
+  startGenerationUi(count, previousQuestions.length > 0);
   try {
     const { quiz, warnings } = await requestQuiz(
-      { text: courseText.value.trim(), file, count, difficulty, title },
+      { text, file, count, difficulty, title, previousQuestions },
       state.generation.controller.signal,
     );
     stopGenerationUi();
+    state.lastCourse = { text, file, questions: quiz.questions.map((question) => question.question) };
     startQuiz(quiz, { origin: 'ai', difficulty, warnings });
   } catch (error) {
     stopGenerationUi();
@@ -199,19 +205,21 @@ async function handleGenerate(event) {
   }
 }
 
-function startGenerationUi(count) {
+function startGenerationUi(count, isNewQuiz) {
   state.generation = { controller: new AbortController(), startedAt: Date.now(), timer: 0 };
   $('create-fields').disabled = true;
   $('generate-btn').setAttribute('aria-busy', 'true');
   $('generate-icon').toggleAttribute('hidden', true);
   $('generate-spinner').hidden = false;
   $('generate-label').textContent = 'Génération en cours…';
-  $('generation-text').textContent = `L'IA lit ton cours et prépare ${count} questions…`;
+  $('generation-text').textContent = isNewQuiz
+    ? `L'IA prépare ${count} nouvelles questions sur ton cours…`
+    : `L'IA lit ton cours et prépare ${count} questions…`;
   $('generation-hint').textContent = "En général moins d'une minute.";
   $('generation-time').textContent = '0 s';
   $('generation-panel').hidden = false;
   state.generation.timer = setInterval(updateGenerationTime, 1000);
-  announce(`Génération en cours. L'IA prépare ${count} questions.`);
+  announce(`Génération en cours. L'IA prépare ${count} ${isNewQuiz ? 'nouvelles ' : ''}questions.`);
   $('cancel-btn').focus();
 }
 
@@ -404,11 +412,18 @@ function finishQuiz() {
   $('retry-wrong-btn').hidden = wrongCount === 0;
   $('retry-btn').classList.toggle('btn--primary', wrongCount === 0);
   $('retry-btn').classList.toggle('btn--secondary', wrongCount > 0);
+  $('new-questions-btn').hidden = state.origin !== 'ai'; // le quiz de démonstration n'a pas de cours envoyé à l'IA
 
   state.reviewFilter = 'all';
   renderReview();
   showScreen('results', 'results-title');
   animateScoreRing(correct / total);
+}
+
+/** Nouveau quiz sur le même cours, avec les mêmes réglages : l'IA évite les questions déjà posées. */
+function generateNewQuestions() {
+  goHome(); // l'écran Créer montre le cours envoyé et l'attente de l'IA
+  $('create-form').requestSubmit();
 }
 
 /** Nouvelle partie avec seulement les questions ratées ; leurs choix sont de nouveau mélangés. */
@@ -538,6 +553,7 @@ function init() {
   $('retry-btn').addEventListener('click', () =>
     startQuiz(state.fullQuiz, { origin: state.origin, difficulty: state.difficulty, warnings: state.warnings }),
   );
+  $('new-questions-btn').addEventListener('click', generateNewQuestions);
   $('new-btn').addEventListener('click', goHome);
   $('filter-all').addEventListener('click', () => setReviewFilter('all'));
   $('filter-wrong').addEventListener('click', () => setReviewFilter('wrong'));

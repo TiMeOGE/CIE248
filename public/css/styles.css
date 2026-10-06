@@ -1469,9 +1469,13 @@ main {
     font-size: var(--text-xl);
   }
 
-  .question-nav .btn,
-  .score-card__actions .btn {
+  .question-nav .btn {
     flex: 1;
+  }
+
+  /* Résultat : un bouton par ligne, pour que chaque texte tienne sur une seule ligne. */
+  .score-card__actions .btn {
+    flex: 1 1 100%;
   }
 
   .score-card {
