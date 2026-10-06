@@ -79,6 +79,26 @@ class ServiceTests(unittest.TestCase):
         self.assertIn('"correct_answer"', system["content"])
         self.assertIn(COURSE, user["content"])
 
+    def test_new_quiz_lists_previous_questions(self):
+        previous = ["Quel astre chauffe l'eau ?", "  ", "Que devient la glace ?"]
+        with self.fake_openai(self.response_body(quiz_data(2))):
+            quiz_service.generate_quiz(COURSE, 2, previous_questions=previous)
+        system, document, listing = self.request["messages"]
+        self.assertIn("n'en reprends aucune", system["content"])
+        self.assertIn(COURSE, document["content"])
+        self.assertEqual(listing, {
+            "role": "user", "content": "Questions deja posees :\n- Quel astre chauffe l'eau ?\n- Que devient la glace ?",
+        })
+        # Premier quiz sur ce cours : ni consigne ni liste.
+        with self.fake_openai(self.response_body(quiz_data(2))):
+            quiz_service.generate_quiz(COURSE, 2)
+        self.assertEqual(len(self.request["messages"]), 2)
+        self.assertNotIn("n'en reprends aucune", self.request["messages"][0]["content"])
+        for previous in (["Question ?"] * 16, ["a" * 501]):
+            with self.subTest(count=len(previous)), self.assertRaises(ApiError) as error:
+                quiz_service.generate_quiz(COURSE, 2, previous_questions=previous)
+            self.assertEqual(error.exception.code, "INVALID_PREVIOUS_QUESTIONS")
+
     def test_providers_are_configured_by_environment(self):
         cases = [
             ({"AI_BASE_URL": "https://openrouter.ai/api/v1", "AI_MODEL": "openai/gpt-4.1-mini"},

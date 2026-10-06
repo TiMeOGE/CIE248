@@ -99,6 +99,9 @@ def create_app() -> FastAPI:
         text: Annotated[str, Form(description="Texte du cours colle, seul ou en complement du PDF.")] = "",
         question_count: Annotated[int, Form(ge=MIN_QUESTIONS, le=MAX_QUESTIONS)] = 5,
         difficulty: Annotated[Difficulty, Form()] = "intermediaire",
+        previous_questions: Annotated[
+            list[str] | None, Form(description="Questions du quiz precedent sur ce cours : l'IA en pose d'autres.")
+        ] = None,
     ) -> Quiz:
         pasted = text.strip()
         parts = []
@@ -119,7 +122,7 @@ def create_app() -> FastAPI:
             raise ApiError(413, "TEXT_TOO_LONG", "Le cours depasse 60 000 caracteres.")
         if len(course) < MIN_TEXT_CHARACTERS:
             raise ApiError(422, "INSUFFICIENT_TEXT", "Le cours doit contenir au moins 200 caracteres de texte.")
-        return generate_quiz(course, question_count, difficulty)
+        return generate_quiz(course, question_count, difficulty, previous_questions=previous_questions or [])
 
     # Interface web (public/) servie a la racine, apres les routes de l'API.
     app.mount("/", RevalidatedStaticFiles(directory=PUBLIC_DIR, html=True), name="public")

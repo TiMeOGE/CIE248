@@ -115,6 +115,7 @@ au moins `file` **ou** `text` :
 | `text` | texte | facultatif | texte du cours collé ; avec un PDF, ajouté après son texte |
 | `question_count` | entier | `5` | de 1 à 15 (l'interface propose 5, 10 ou 15) |
 | `difficulty` | texte | `intermediaire` | `facile`, `intermediaire`, `difficile` |
+| `previous_questions` | texte, répétable | aucun | questions du quiz précédent sur ce cours (15 maximum, 500 caractères chacune) : l'IA en pose d'autres |
 
 La difficulté change la consigne donnée à l'IA (`DIFFICULTY_GUIDES` dans
 `backend/app/services/quiz_service.py`) ; les questions restent tirées du cours :
@@ -122,6 +123,14 @@ La difficulté change la consigne donnée à l'IA (`DIFFICULTY_GUIDES` dans
 - `facile` : faits écrits tels quels dans le cours, distracteurs clairement faux ;
 - `intermediaire` : compréhension, reformuler ou relier deux informations ;
 - `difficile` : raisonner ou appliquer une notion à un cas, distracteurs proches.
+
+Pour un nouveau quiz sur le même cours, l'interface renvoie le cours et ajoute
+un champ `previous_questions` par question du quiz qui vient d'être fait. Le
+serveur les envoie à l'IA dans un message séparé du cours, avec la consigne de
+ne pas les reprendre (`NEW_QUIZ_GUIDE` dans `quiz_service.py`) : elle interroge
+d'autres informations du cours, ou les mêmes notions sous un autre angle si le
+cours est court. Au-delà de 15 questions ou de 500 caractères par question, le
+serveur répond `422 INVALID_PREVIOUS_QUESTIONS`.
 
 ### Délai de l'IA
 

@@ -150,6 +150,17 @@ class ApiTests(unittest.TestCase):
                 self.assertIn(COURSE, text)
                 self.assertEqual((actual_count, difficulty), (count, "difficile"))
 
+    def test_previous_questions_reach_the_ai(self):
+        with patch.object(main, "generate_quiz", return_value=Quiz(**quiz_data(1))) as generate:
+            response = self.client.post("/api/quiz/generate", data={"text": COURSE, "question_count": 1})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(generate.call_args.kwargs["previous_questions"], [])
+            # Champ repete, une valeur par question du quiz precedent.
+            previous = ["Quel astre chauffe l'eau ?", "Que devient la glace ?"]
+            response = self.post_pdf(question_count=1, previous_questions=previous)
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(generate.call_args.kwargs["previous_questions"], previous)
+
     def test_missing_api_key(self):
         response = self.post_pdf()
         self.assertEqual(response.status_code, 503)
@@ -175,7 +186,7 @@ class ApiTests(unittest.TestCase):
         operation = schema["paths"]["/api/quiz/generate"]["post"]
         form = operation["requestBody"]["content"]["multipart/form-data"]["schema"]
         fields = schema["components"]["schemas"][form["$ref"].split("/")[-1]]
-        self.assertEqual(set(fields["properties"]), {"file", "text", "question_count", "difficulty"})
+        self.assertEqual(set(fields["properties"]), {"file", "text", "question_count", "difficulty", "previous_questions"})
         self.assertNotIn("required", fields)
 
     def test_cors_allowed_denied_and_validation_errors(self):

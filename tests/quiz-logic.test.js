@@ -18,6 +18,7 @@ import {
   isValidQuiz,
   prepareQuiz,
   resultMessage,
+  sameCourse,
   shuffleChoices,
   titleFromFileName,
   wrongQuestions,
@@ -84,6 +85,17 @@ test('wrongQuestions garde les réponses fausses ou absentes, dans l’ordre du 
   retry.questions.forEach((question, i) => {
     assert.equal(question.choices[question.correctIndex], wrong[i].choices[wrong[i].correctIndex]);
   });
+});
+
+test('sameCourse : même texte et même PDF, même choisi une deuxième fois', () => {
+  const pdf = { name: 'eau.pdf', size: 1200, lastModified: 1 };
+  const previous = { text: "Le cycle de l'eau", file: pdf, questions: ['Q1'] };
+  assert.equal(sameCourse(previous, { text: "Le cycle de l'eau", file: { ...pdf } }), true);
+  assert.equal(sameCourse(previous, { text: 'Un autre cours', file: pdf }), false);
+  assert.equal(sameCourse(previous, { text: "Le cycle de l'eau", file: { ...pdf, size: 900 } }), false);
+  assert.equal(sameCourse(previous, { text: "Le cycle de l'eau", file: null }), false);
+  assert.equal(sameCourse({ text: 'Texte seul', file: null }, { text: 'Texte seul', file: null }), true);
+  assert.equal(sameCourse(null, { text: 'Texte seul', file: null }), false); // aucun quiz généré avant
 });
 
 test('computeScore arrondit le pourcentage et gère un quiz vide', () => {
