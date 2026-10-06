@@ -6,7 +6,7 @@
 //   3. Navigation entre les écrans
 //   4. Écran 1 : Créer (PDF et/ou texte, réglages, génération, démo)
 //   5. Écran 2 : Quiz
-//   6. Écran 3 : Résultat et corrigé
+//   6. Écran 3 : Résultat, historique local et corrigé (impression, fichier texte)
 //   7. Aide et démarrage
 //
 // Sécurité : tout texte venant de l'IA est inséré avec textContent, jamais innerHTML.
@@ -16,14 +16,21 @@ import { DEMO_COURSE, DEMO_QUIZ } from './demo-quiz.js';
 import { ApiError, fetchStatus, requestQuiz } from './api.js';
 import {
   TEXT_MAX_CHARS,
+  addToHistory,
   checkCourseInput,
+  checkCourseText,
+  checkTextFile,
   computeScore,
   countAnswered,
+  decodeText,
   firstUnanswered,
   formatDuration,
   formatNumber,
+  parseHistory,
   prepareQuiz,
   resultMessage,
+  reviewFileName,
+  reviewText,
   sameCourse,
   titleFromFileName,
   wrongQuestions,
@@ -40,6 +47,8 @@ const DIFFICULTIES = {
 const LETTERS = ['A', 'B', 'C', 'D'];
 const RING_LENGTH = 2 * Math.PI * 54; // circonférence de l'anneau de score (rayon 54 dans le SVG)
 const SLOW_GENERATION_SECONDS = 40;
+const HISTORY_KEY = 'quiz-ia-history'; // localStorage : 5 derniers résultats, sans le cours
+const dateFormat = new Intl.DateTimeFormat('fr-CH', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
 /* 1. État de l'application ------------------------------------ */
 // Une seule source de vérité : l'affichage est toujours recalculé à partir de cet objet.
@@ -54,7 +63,10 @@ const state = {
   answers: [], // pour chaque question : index du choix de l'élève, ou null
   current: 0, // index de la question affichée
   startedAt: 0,
+  onlyWrong: false, // partie limitée aux questions à revoir
+  result: null, // fin de la partie : { elapsedMs, finishedAt }
   reviewFilter: 'all', // corrigé : 'all' (toutes) ou 'wrong' (à revoir)
+  history: [], // derniers résultats, du plus récent au plus ancien (voir saveToHistory)
 };
 
 /* 2. Petits outils -------------------------------------------- */
@@ -163,6 +175,54 @@ function fillExample() {
   courseText.focus();
   courseText.setSelectionRange(0, 0);
   courseText.scrollTop = 0;
+}
+
+/** Remplit la zone de texte avec un fichier .txt, choisi avec le bouton ou déposé sur la zone. */
+async function importTextFile(file) {
+  const check = checkTextFile(file);
+  if (!check.ok) {
+    showFieldError('text', check.message);
+    return;
+  }
+  let text;
+  try {
+    text = decodeText(new Uint8Array(await file.arrayBuffer()));
+  } catch {
+    showFieldError('text', 'Impossible de lire ce fichier. Choisis-le à nouveau.');
+    return;
+  }
+  const current = courseText.value.trim();
+  if (current && current !== text.trim() && !confirm('Remplacer ton texte par le contenu du fichier ?')) return;
+  courseText.value = text;
+  updateCounter();
+  clearFieldError();
+  courseText.focus();
+  courseText.setSelectionRange(0, 0);
+  courseText.scrollTop = 0;
+  const length = text.trim().length;
+  if (length > TEXT_MAX_CHARS) {
+    showFieldError('text', checkCourseText(text).message); // trop long : on le dit tout de suite
+    return;
+  }
+  announce(`Fichier ${file.name} importé : ${formatNumber(length)} caractères.`);
+}
+
+/** Dépôt d'un fichier sur la zone de texte ; sans cela, le navigateur ouvrirait le fichier à la place du site. */
+function setupTextDrop() {
+  const hasFile = (event) => event.dataTransfer?.types.includes('Files');
+  courseText.addEventListener('dragover', (event) => {
+    if (!hasFile(event)) return; // un texte glissé garde le comportement normal
+    event.preventDefault();
+    courseText.classList.add('is-dragover');
+  });
+  courseText.addEventListener('dragleave', () => courseText.classList.remove('is-dragover'));
+  courseText.addEventListener('drop', (event) => {
+    courseText.classList.remove('is-dragover');
+    const file = event.dataTransfer.files[0];
+    if (!file) return;
+    event.preventDefault();
+    importTextFile(file);
+  });
 }
 
 async function handleGenerate(event) {
@@ -277,6 +337,7 @@ async function checkServer() {
 /* 5. Écran 2 : Quiz ------------------------------------------- */
 function startQuiz(quiz, { origin, difficulty, warnings, onlyWrong = false }) {
   if (!onlyWrong) state.fullQuiz = quiz;
+  state.onlyWrong = onlyWrong;
   state.quiz = prepareQuiz(quiz); // mélange les choix de chaque question
   state.origin = origin;
   state.difficulty = difficulty;
@@ -414,10 +475,71 @@ function finishQuiz() {
   $('retry-btn').classList.toggle('btn--secondary', wrongCount > 0);
   $('new-questions-btn').hidden = state.origin !== 'ai'; // le quiz de démonstration n'a pas de cours envoyé à l'IA
 
+  state.result = { elapsedMs, finishedAt: Date.now() };
+  saveToHistory({
+    date: state.result.finishedAt, correct, total, durationMs: elapsedMs,
+    difficulty: state.difficulty, origin: state.origin, onlyWrong: state.onlyWrong,
+  });
+  renderHistory();
+
   state.reviewFilter = 'all';
   renderReview();
   showScreen('results', 'results-title');
   animateScoreRing(correct / total);
+}
+
+/* Historique : seulement des chiffres et des réglages, jamais le cours, les questions ni le titre. */
+function loadHistory() {
+  try {
+    state.history = parseHistory(localStorage.getItem(HISTORY_KEY) ?? '[]');
+  } catch {
+    state.history = []; // stockage bloqué (navigation privée, réglages du navigateur)
+  }
+}
+
+function saveToHistory(entry) {
+  state.history = addToHistory(state.history, entry);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
+  } catch {
+    // Stockage bloqué : l'historique reste affiché jusqu'au rechargement de la page.
+  }
+}
+
+function clearHistory() {
+  if (!confirm("Effacer l'historique ? Tes derniers résultats seront supprimés de ce navigateur.")) return;
+  state.history = [];
+  try {
+    localStorage.removeItem(HISTORY_KEY);
+  } catch {
+    // Rien d'enregistré à effacer.
+  }
+  renderHistory();
+  announce('Historique effacé.');
+}
+
+function renderHistory() {
+  const items = state.history.map((entry) => {
+    const isCurrent = entry.date === state.result?.finishedAt;
+    const item = element('li', isCurrent ? 'history__item is-current' : 'history__item');
+    const percent = Math.round((entry.correct / entry.total) * 100);
+    const details = [
+      `${percent} %`,
+      formatDuration(entry.durationMs),
+      `${entry.total} ${entry.total > 1 ? 'questions' : 'question'}, ${DIFFICULTIES[entry.difficulty]?.label ?? ''}`,
+    ];
+    if (entry.origin === 'demo') details.push('démonstration');
+    if (entry.onlyWrong) details.push('questions à revoir');
+    item.append(
+      element('span', 'history__score', `${entry.correct}/${entry.total}`),
+      element('span', 'history__details', details.join(' · ')),
+      element('span', 'history__date', isCurrent ? 'Ce quiz' : dateFormat.format(entry.date)),
+    );
+    return item;
+  });
+  if (items.length === 0) items.push(element('li', 'history__empty', "Aucun résultat gardé pour l'instant."));
+  $('history-list').replaceChildren(...items);
+  $('history-clear').hidden = state.history.length === 0;
 }
 
 /** Nouveau quiz sur le même cours, avec les mêmes réglages : l'IA évite les questions déjà posées. */
@@ -508,6 +630,42 @@ function answerLine(text, isGood) {
   return line;
 }
 
+/** Fichier texte du corrigé : les questions affichées (« Toutes » ou « À revoir »), avec le score et le temps. */
+function downloadReview() {
+  const finishedAt = new Date(state.result.finishedAt);
+  const text = reviewText({
+    title: $('quiz-title').textContent,
+    details: `${$('quiz-origin').textContent} · ${$('quiz-meta').textContent}`,
+    dateLabel: dateFormat.format(finishedAt),
+    questions: state.quiz.questions,
+    answers: state.answers,
+    elapsedMs: state.result.elapsedMs,
+    onlyWrong: state.reviewFilter === 'wrong',
+    disclaimer: $('review-disclaimer').textContent,
+  });
+  // Le caractère ﻿ (BOM) aide les anciens éditeurs Windows à afficher les accents.
+  const url = URL.createObjectURL(new Blob(['﻿', text], { type: 'text/plain;charset=utf-8' }));
+  const link = element('a');
+  link.href = url;
+  link.download = reviewFileName($('quiz-title').textContent, finishedAt);
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  announce('Corrigé téléchargé.');
+}
+
+/** Impression (bouton ou Ctrl+P) : le corrigé affiché est entièrement déplié, puis remis comme avant. */
+function setupPrint() {
+  let closedItems = [];
+  window.addEventListener('beforeprint', () => {
+    closedItems = [...document.querySelectorAll('.review-item:not([open])')];
+    for (const item of closedItems) item.open = true;
+  });
+  window.addEventListener('afterprint', () => {
+    for (const item of closedItems) item.open = false;
+    closedItems = [];
+  });
+}
+
 /* 7. Aide et démarrage ---------------------------------------- */
 function setupHelpDialog() {
   const dialog = $('help-dialog');
@@ -539,6 +697,13 @@ function init() {
     radio.addEventListener('change', updateDifficultyHint);
   }
   $('example-btn').addEventListener('click', fillExample);
+  $('txt-btn').addEventListener('click', () => $('txt-file').click());
+  $('txt-file').addEventListener('change', () => {
+    const file = $('txt-file').files[0];
+    $('txt-file').value = ''; // permet de choisir à nouveau le même fichier
+    if (file) importTextFile(file);
+  });
+  setupTextDrop();
   $('demo-btn').addEventListener('click', startDemo);
   $('error-demo-btn').addEventListener('click', startDemo);
   $('cancel-btn').addEventListener('click', () => state.generation?.controller.abort());
@@ -557,6 +722,11 @@ function init() {
   $('new-btn').addEventListener('click', goHome);
   $('filter-all').addEventListener('click', () => setReviewFilter('all'));
   $('filter-wrong').addEventListener('click', () => setReviewFilter('wrong'));
+  $('print-btn').addEventListener('click', () => window.print());
+  $('download-btn').addEventListener('click', downloadReview);
+  $('history-clear').addEventListener('click', clearHistory);
+  setupPrint();
+  loadHistory();
 
   // Logo : retour à l'accueil sans recharger la page (et sans perdre un quiz par erreur)
   document.querySelector('.brand').addEventListener('click', (event) => {

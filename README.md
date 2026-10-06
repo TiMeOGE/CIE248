@@ -175,3 +175,8 @@ vers `develop` pour intégration avant une éventuelle validation vers `main`.
 
 Ne jamais mettre de clé API dans le code, dans Git, dans un chat IA ou sur
 Discord. Le repository est **public**.
+
+Le navigateur garde seulement le thème choisi et les 5 derniers résultats
+(`localStorage`, sur l'appareil de l'élève) : score, temps, nombre de questions
+et difficulté. Ni le cours, ni les questions, ni le titre du quiz ne sont
+enregistrés. Le bouton « Effacer l'historique » de l'écran Résultat les supprime.

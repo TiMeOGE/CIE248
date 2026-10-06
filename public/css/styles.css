@@ -6,6 +6,7 @@
    4. Composants
    5. Écrans
    6. Accessibilité et mouvement réduit
+   7. Impression du corrigé
    Documentation du design system : docs/DESIGN.md
    Règle : aucune couleur, taille ou durée en dur hors de la section 1.
    ============================================================= */
@@ -483,6 +484,12 @@ main {
   margin-bottom: 0;
 }
 
+.field__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+
 .field__meta {
   display: flex;
   justify-content: space-between;
@@ -556,6 +563,12 @@ main {
 
 .textarea::placeholder {
   color: var(--color-text-muted);
+}
+
+/* Fichier .txt glissé au-dessus de la zone de texte */
+.textarea.is-dragover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .field__optional {
@@ -1300,12 +1313,87 @@ main {
   gap: var(--space-3);
 }
 
+/* Historique local des derniers résultats */
+.history {
+  margin-bottom: var(--space-6);
+}
+
+.history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.history__title {
+  font-size: var(--text-lg);
+}
+
+.history__list {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  margin-bottom: var(--space-3);
+  list-style: none;
+}
+
+.history__item {
+  display: grid;
+  grid-template-columns: 3rem 1fr auto;
+  grid-template-areas: "score details date";
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.history__item.is-current {
+  background: var(--color-primary-soft);
+}
+
+.history__score {
+  grid-area: score;
+  font-weight: var(--weight-bold);
+}
+
+.history__details {
+  grid-area: details;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.history__date {
+  grid-area: date;
+  justify-self: end;
+}
+
+.history__date,
+.history__empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.history__item.is-current .history__date {
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+}
+
 .review__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.review__export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   margin-bottom: var(--space-4);
 }
 
@@ -1473,6 +1561,14 @@ main {
     flex: 1;
   }
 
+  /* Historique : score et date sur la première ligne, détails en dessous. */
+  .history__item {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "score date"
+      "details details";
+  }
+
   /* Résultat : un bouton par ligne, pour que chaque texte tienne sur une seule ligne. */
   .score-card__actions .btn {
     flex: 1 1 100%;
@@ -1509,5 +1605,35 @@ main {
   .loading-panel__bar span {
     width: 100%;
     transform: none;
+  }
+}
+
+/* 7. Impression du corrigé -------------------------------------- */
+/* Pendant l'impression, js/theme.js passe en thème clair et app.js déplie tout le corrigé. */
+@media print {
+  .site-header,
+  .site-footer,
+  .skip-link,
+  .stepper,
+  .score-card__actions,
+  .history,
+  .filter,
+  .review__export,
+  .review-item__chevron {
+    display: none !important;
+  }
+
+  main {
+    padding-block: 0;
+  }
+
+  .card,
+  .review-item {
+    box-shadow: none;
+  }
+
+  /* Une question n'est jamais coupée entre deux pages. */
+  .review-item {
+    break-inside: avoid;
   }
 }

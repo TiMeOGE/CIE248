@@ -106,10 +106,12 @@ tests/     fixtures/  *.test.js
   génération IA + validation serveur · toutes les erreurs de la section 4 ·
   quiz, score, corrigé · mode démo hors ligne · limitation des générations
   (site public) · tests des parcours critiques · README, `.env.example`
-- **SHOULD** : difficulté · import `.txt` · import PDF texte (dans le navigateur) ·
+- **SHOULD** : difficulté · import `.txt` (fait : bouton ou dépôt sur la zone de texte) ·
+  import PDF texte (dans le navigateur) ·
   vérification que `sourceQuote` existe dans le cours · 1 relance automatique
   si la réponse IA est invalide · CI GitHub Actions
-- **NICE** : Vrai/Faux · historique local · import `.docx` · OCR des PDF scannés
+- **NICE** : Vrai/Faux · historique local (fait : 5 derniers résultats dans le navigateur,
+  sans le cours) · imprimer ou télécharger le corrigé (fait : `.txt`) · import `.docx` · OCR des PDF scannés
   (fait : Tesseract côté serveur, voir `backend/README.md`) · refaire seulement
   les questions ratées (fait : bouton de l'écran Résultat, sans nouvel appel à l'IA) ·
   nouveau quiz sur le même cours (fait : « Générer d'autres questions », l'IA reçoit

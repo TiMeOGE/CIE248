@@ -77,6 +77,9 @@ La couleur n'est **jamais** le seul indicateur : bonne ou mauvaise réponse = ic
 | Corrigé | `.review-item` | juste / à revoir (déplié d'office) | `<details>` / `<summary>` natifs |
 | Aide | `.dialog` | | `<dialog>` natif : Échap ferme, le focus est piégé |
 | Thème | `#theme-toggle` (`.btn--icon`) | lune en clair, soleil en sombre | `aria-label` = l'action (« Passer en mode sombre ») |
+| Import `.txt` | `#txt-btn`, dépôt sur `.textarea` | `.is-dragover` pendant le glisser | Vrai bouton (le dépôt n'est qu'un raccourci) ; erreurs sous le champ texte |
+| Historique | `.history`, `.history__item` | `is-current` (le quiz qui vient d'être fait) ; 2 lignes sur mobile | Liste `<ol>` ; « Effacer l'historique » demande confirmation |
+| Export du corrigé | `.review__export` | imprimer, télécharger en `.txt` | Suit le filtre du corrigé ; l'impression passe en thème clair et déplie tout |
 
 ## 4. Rédaction (UX copy)
 
