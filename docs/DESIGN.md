@@ -10,7 +10,7 @@
 2. **Accessible (WCAG AA)** : contraste ≥ 4,5:1 pour le texte, cadre de focus visible, zones cliquables ≥ 44 px, texte ≥ 14 px (16 px pour le texte courant).
 3. **Honnête sur l'IA** : un quiz généré est toujours signalé comme tel, avec l'extrait du cours pour vérifier.
 4. **Sobre et rapide** : polices du système (aucune requête vers Google Fonts, fonctionne hors ligne), icônes SVG (jamais d'emoji comme icône), pas de bibliothèque.
-5. **Clair et sombre** : le thème suit automatiquement le réglage de l'appareil.
+5. **Clair et sombre** : le thème suit le réglage de l'appareil, et le bouton lune / soleil de l'en-tête permet de choisir. Ce choix est gardé dans le navigateur (`localStorage`). `js/theme.js` pose `data-theme="dark"` sur `<html>` avant le premier affichage, ce qui active les valeurs de la colonne « Sombre » ci-dessous.
 
 ## 2. Design tokens
 
@@ -76,6 +76,7 @@ La couleur n'est **jamais** le seul indicateur : bonne ou mauvaise réponse = ic
 | Score | `.score-ring` | animation du cercle | Le SVG est décoratif ; le score est écrit en texte |
 | Corrigé | `.review-item` | juste / à revoir (déplié d'office) | `<details>` / `<summary>` natifs |
 | Aide | `.dialog` | | `<dialog>` natif : Échap ferme, le focus est piégé |
+| Thème | `#theme-toggle` (`.btn--icon`) | lune en clair, soleil en sombre | `aria-label` = l'action (« Passer en mode sombre ») |
 
 ## 4. Rédaction (UX copy)
 

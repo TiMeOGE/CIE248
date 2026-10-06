@@ -80,32 +80,32 @@
   --container-narrow: 46rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --color-bg: #11121c;
-    --color-surface: #1a1c2b;
-    --color-surface-muted: #232638;
-    --color-border: #2e3148;
-    --color-border-input: #6b7090;
-    --color-text: #eceefb;
-    --color-text-muted: #a9adc8;
-    --color-primary: #908dff;
-    --color-primary-hover: #aaa8ff;
-    --color-primary-soft: #2a2a52;
-    --color-on-primary: #11121c;
-    --color-success: #4fd1a5;
-    --color-success-soft: #173a31;
-    --color-warning: #f2b66d;
-    --color-warning-soft: #3d2e1a;
-    --color-danger: #ff8b91;
-    --color-danger-soft: #3f1f24;
-    --color-focus: #b4b2ff;
-    --color-backdrop: rgb(0 0 0 / 0.6);
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
-    --shadow-md: 0 12px 32px rgb(0 0 0 / 0.3);
-    --shadow-lg: 0 30px 80px rgb(0 0 0 / 0.5);
-  }
+/* Thème sombre : js/theme.js pose data-theme="dark" sur <html>, selon le
+   réglage de l'appareil ou le choix fait avec le bouton de l'en-tête. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #11121c;
+  --color-surface: #1a1c2b;
+  --color-surface-muted: #232638;
+  --color-border: #2e3148;
+  --color-border-input: #6b7090;
+  --color-text: #eceefb;
+  --color-text-muted: #a9adc8;
+  --color-primary: #908dff;
+  --color-primary-hover: #aaa8ff;
+  --color-primary-soft: #2a2a52;
+  --color-on-primary: #11121c;
+  --color-success: #4fd1a5;
+  --color-success-soft: #173a31;
+  --color-warning: #f2b66d;
+  --color-warning-soft: #3d2e1a;
+  --color-danger: #ff8b91;
+  --color-danger-soft: #3f1f24;
+  --color-focus: #b4b2ff;
+  --color-backdrop: rgb(0 0 0 / 0.6);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 12px 32px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 30px 80px rgb(0 0 0 / 0.5);
 }
 
 /* 2. Base ------------------------------------------------------ */
@@ -270,6 +270,18 @@ main {
 
 .brand__accent {
   color: var(--color-primary);
+}
+
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Bouton de thème : une lune en clair (passer en sombre), un soleil en sombre. */
+:root[data-theme="dark"] .theme-toggle__moon,
+:root:not([data-theme="dark"]) .theme-toggle__sun {
+  display: none;
 }
 
 .site-footer {
@@ -1446,6 +1458,11 @@ main {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+
+  /* Place pour les deux boutons : « Prototype » reste écrit dans le pied de page. */
+  .brand .pill {
+    display: none;
   }
 
   .question-text {
